@@ -50,6 +50,9 @@ initBookingWorker();
 const app: Express = express();
 const port = process.env.PORT || 3001;
 
+// Trust proxy for Render/Vercel
+app.set('trust proxy', 1);
+
 // 1. Security & Logging Middleware
 app.use(helmet());
 app.use(cors({

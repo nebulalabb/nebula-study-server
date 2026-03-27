@@ -18,6 +18,9 @@ router.post('/solve/image', quotaGuard('solver'), imageUpload.single('image'), S
 // 3.1.6 — GET /solver/history
 router.get('/history', SolverController.getHistory);
 
+// 3.1.6.1 — GET /solver/history/:id
+router.get('/history/:id', SolverController.getHistoryById);
+
 // 3.1.7 — DELETE /solver/history/:id
 router.delete('/history/:id', SolverController.deleteHistory);
 

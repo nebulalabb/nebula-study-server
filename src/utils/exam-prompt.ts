@@ -40,8 +40,10 @@ CRITICAL RULES:
 5. All content MUST be in Vietnamese, unless the subject is "English" (then the questions/options MUST be English, but explanation can be Vietnamese or English).
 `;
 
+import { robustParseJSON } from './json-parser.js';
+
 export async function generateExamPayload(params: { subject: string; topic: string; difficulty: string; count: number; customModel?: 'pro' | 'flash' }) {
-  const modelName = params.customModel === 'pro' ? 'gemini-1.5-pro' : 'gemini-2.5-flash';
+  const modelName = process.env.GEMINI_MODEL_FLASH || 'gemini-1.5-flash';
   
   const userPrompt = `
 SUBJECT: ${params.subject}
@@ -56,5 +58,5 @@ QUESTION_COUNT: ${params.count}
     temperature: 0.7,
   });
 
-  return JSON.parse(result.text.replace(/\\`\\`\\`json/g, '').replace(/\\`\\`\\`/g, '').trim());
+  return robustParseJSON(result.text);
 }

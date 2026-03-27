@@ -81,40 +81,15 @@ export class QuizController {
       });
 
       const questions = parseQuizOutput(geminiResult.text);
-      if (questions.length === 0) throw new AppError('Không tách được câu hỏi', 422, ERROR_CODES.VALIDATION_FAILED);
+      await QuotaService.consumeQuota(user.id, user.plan as any, 'quiz', 'generate_text', geminiResult.tokensUsed);
 
-      const shareToken = generateShareToken();
-      let setId: string;
-      const client = await db.getClient();
-      try {
-        await client.query('BEGIN');
-        
-        const setRow = await client.query<{ id: string }>(
-          `INSERT INTO quiz_sets (user_id, title, source_type, question_count, difficulty, share_token)
-           VALUES ($1, $2, 'text', $3, $4, $5) RETURNING id`,
-          [user.id, title.trim(), questions.length, difficulty, shareToken]
-        );
-        setId = setRow.rows[0]!.id;
-
-        for (let i = 0; i < questions.length; i++) {
-          const q = questions[i];
-          await client.query(
-            `INSERT INTO quiz_questions (quiz_id, question_text, question_type, options, correct_answers, explanation, sort_order)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [setId, q.question_text, q.question_type || 'single_choice', JSON.stringify(q.options || []), JSON.stringify(q.correct_answers), q.explanation, i]
-          );
-        }
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
-
-      await QuotaService.consumeQuota(user.id, user.plan as any, 'quiz', 'generate_text', geminiResult.tokensUsed, { quiz_id: setId });
-
-      return sendSuccess(res, { quiz_id: setId, question_count: questions.length, share_token: shareToken }, {}, 201);
+      return sendSuccess(res, { 
+        questions, 
+        source_type: 'text',
+        source_content: text,
+        title: title.trim(),
+        difficulty
+      });
     } catch (err) { next(err); }
   }
 
@@ -149,7 +124,28 @@ export class QuizController {
       });
 
       const questions = parseQuizOutput(geminiResult.text);
-      if (questions.length === 0) throw new AppError('Không sinh được câu hỏi', 422, ERROR_CODES.VALIDATION_FAILED);
+      await QuotaService.consumeQuota(user.id, user.plan as any, 'quiz', 'generate_pdf', geminiResult.tokensUsed);
+
+      return sendSuccess(res, { 
+        questions, 
+        source_type: 'pdf',
+        source_url: uploadResult.secure_url,
+        title,
+        difficulty
+      });
+    } catch (err) { next(err); }
+  }
+
+  // ── 6.1.10 POST /quiz (Final Save) ────────────────────────────────────────
+  static async saveQuiz(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { title, source_type, source_url, difficulty, questions } = req.body;
+
+      if (!title) throw new AppError('Tiêu đề là bắt buộc', 400, ERROR_CODES.VALIDATION_FAILED);
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        throw new AppError('Bộ đề phải có ít nhất 1 câu hỏi', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
 
       const shareToken = generateShareToken();
       let setId: string;
@@ -158,8 +154,8 @@ export class QuizController {
         await client.query('BEGIN');
         const setRow = await client.query<{ id: string }>(
           `INSERT INTO quiz_sets (user_id, title, source_type, source_url, question_count, difficulty, share_token)
-           VALUES ($1, $2, 'pdf', $3, $4, $5, $6) RETURNING id`,
-          [user.id, title, uploadResult.secure_url, questions.length, difficulty, shareToken]
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [user.id, title, source_type, source_url || null, questions.length, difficulty, shareToken]
         );
         setId = setRow.rows[0]!.id;
 
@@ -168,7 +164,15 @@ export class QuizController {
           await client.query(
             `INSERT INTO quiz_questions (quiz_id, question_text, question_type, options, correct_answers, explanation, sort_order)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [setId, q.question_text, q.question_type || 'single_choice', JSON.stringify(q.options || []), JSON.stringify(q.correct_answers), q.explanation, i]
+            [
+              setId, 
+              q.question_text, 
+              q.question_type || 'single_choice', 
+              JSON.stringify(q.options || []), 
+              JSON.stringify(q.correct_answers), 
+              q.explanation || null, 
+              i
+            ]
           );
         }
         await client.query('COMMIT');
@@ -179,9 +183,7 @@ export class QuizController {
         client.release();
       }
 
-      await QuotaService.consumeQuota(user.id, user.plan as any, 'quiz', 'generate_pdf', geminiResult.tokensUsed, { quiz_id: setId });
-
-      return sendSuccess(res, { quiz_id: setId, question_count: questions.length, file_url: uploadResult.secure_url, share_token: shareToken }, {}, 201);
+      return sendSuccess(res, { quiz_id: setId, share_token: shareToken }, { message: 'Đã lưu bộ đề thành công' }, 201);
     } catch (err) { next(err); }
   }
 
@@ -191,7 +193,7 @@ export class QuizController {
       const { share_token } = req.params;
       
       const quiz = await db.queryOne(
-        'SELECT id, title, description, question_count, difficulty, play_count, created_at FROM quiz_sets WHERE share_token = $1 AND deleted_at IS NULL',
+        'SELECT id, title, description, question_count, difficulty, play_count, share_token, created_at FROM quiz_sets WHERE share_token = $1 AND deleted_at IS NULL',
         [share_token]
       );
       if (!quiz) throw new AppError('Quiz không tồn tại hoặc link chia sẻ bị sai', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
@@ -223,13 +225,16 @@ export class QuizController {
     try {
       const { quiz_id } = req.params;
       const { answers, time_spent_sec, guest_name } = req.body; // answers: Record<string, string[]> (Question_ID -> Chosen_IDs)
-      const user_id = req.user?.id || null; // supports both logged in or guest
+      const user = req.user; // optionalAuthGuard might set this
 
-      const quiz = await db.queryOne('SELECT id, question_count FROM quiz_sets WHERE id = $1 AND deleted_at IS NULL', [quiz_id]);
-      if (!quiz) throw new AppError('Quiz không tồn tại', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+      const quiz = await db.queryOne<{ id: string; title: string }>(
+        'SELECT id, title FROM quiz_sets WHERE id = $1',
+        [quiz_id]
+      );
+      if (!quiz) throw new AppError('Bộ đề không tồn tại', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
 
       const { rows: questions } = await db.query(
-        'SELECT id, correct_answers, points, explanation FROM quiz_questions WHERE quiz_id = $1',
+        'SELECT id, correct_answers, points, explanation, question_type FROM quiz_questions WHERE quiz_id = $1',
         [quiz_id]
       );
 
@@ -237,15 +242,25 @@ export class QuizController {
       let maxScore = 0;
       const details: any[] = [];
 
-      for (const q of questions) {
-        maxScore += q.points;
-        const correctPayload = q.correct_answers as string[];
-        const selectedPayload = (answers as any)[q.id] || [];
+      for (const ans of answers) {
+        const q = questions.find(item => item.id === ans.question_id);
+        if (!q) continue;
 
-        // So sánh 2 mảng đáp án (không phân biệt thứ tự)
+        maxScore += q.points;
+        const correctPayload = (q.correct_answers || []) as string[];
+        const selectedPayload = ans.selected_options || [];
+
+        // So sánh 2 mảng đáp án
         const sortedCorrect = [...correctPayload].sort();
         const sortedSelected = [...selectedPayload].sort();
-        const isCorrect = JSON.stringify(sortedCorrect) === JSON.stringify(sortedSelected);
+        
+        // Case-insensitive comparison for fill_blank
+        let isCorrect = false;
+        if (q?.question_type === 'fill_blank' && sortedCorrect.length > 0 && sortedSelected.length > 0) {
+           isCorrect = (sortedCorrect[0] as string).trim().toLowerCase() === (sortedSelected[0] as string).trim().toLowerCase();
+        } else {
+           isCorrect = JSON.stringify(sortedCorrect) === JSON.stringify(sortedSelected);
+        }
 
         const pointsEarned = isCorrect ? q.points : 0;
         score += pointsEarned;
@@ -271,7 +286,7 @@ export class QuizController {
         const attemptRow = await client.query<{ id: string }>(
           `INSERT INTO quiz_attempts (quiz_id, user_id, guest_name, status, score, max_score, percentage, time_spent_sec, completed_at)
            VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, NOW()) RETURNING id`,
-          [quiz_id, user_id, guest_name || null, score, maxScore, percentage, time_spent_sec || 0]
+          [quiz_id, user?.id || null, guest_name || null, score, maxScore, percentage.toFixed(2), time_spent_sec || 0]
         );
         attemptId = attemptRow.rows[0]!.id;
 
@@ -316,6 +331,37 @@ export class QuizController {
       );
 
       return sendSuccess(res, { attempts: rows });
+    } catch (err) { next(err); }
+  }
+
+  // ── 6.1.11 GET /share/:share_token/result/:attempt_id ─────────────────────
+  static async getResult(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { share_token, attempt_id } = req.params;
+
+      const attempt = await db.queryOne<{ id: string; quiz_id: string; score: number; max_score: number; percentage: number; time_spent_sec: number; created_at: string }>(
+        `SELECT id, quiz_id, score, max_score, percentage, time_spent_sec, created_at as submitted_at
+         FROM quiz_attempts WHERE id = $1`,
+        [attempt_id]
+      );
+      if (!attempt) throw new AppError('Kết quả không tồn tại', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const quiz = await db.queryOne<{ id: string; title: string }>(
+        'SELECT id, title FROM quiz_sets WHERE id = $1 AND share_token = $2',
+        [attempt.quiz_id, share_token]
+      );
+      if (!quiz) throw new AppError('Quiz không hợp lệ', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const { rows: details } = await db.query(
+        `SELECT qa.question_id, q.question_text, qa.is_correct, qa.selected_answers as user_answer, q.correct_answers as correct_answer, q.explanation
+         FROM quiz_answers qa
+         JOIN quiz_questions q ON q.id = qa.question_id
+         WHERE qa.attempt_id = $1
+         ORDER BY q.sort_order ASC`,
+        [attempt_id]
+      );
+
+      return sendSuccess(res, { attempt, quiz, details });
     } catch (err) { next(err); }
   }
 

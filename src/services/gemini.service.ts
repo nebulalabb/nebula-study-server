@@ -12,10 +12,10 @@ export interface GeminiOptions {
   timeoutMs?: number;
 }
 
-export interface GeminiImagePart {
-  type: 'image';
-  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
-  data: string; // base64 or URL
+export interface GeminiFilePart {
+  type: 'image' | 'document';
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
+  data: string; // base64
 }
 
 export interface GeminiResult {
@@ -62,10 +62,10 @@ export class GeminiService {
    */
   static async generate(
     prompt: string,
-    parts: GeminiImagePart[] = [],
+    parts: GeminiFilePart[] = [],
     options: GeminiOptions = {}
   ): Promise<GeminiResult> {
-    const modelName   = options.model           ?? process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+    const modelName   = options.model           ?? process.env.GEMINI_MODEL_FLASH ?? process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
     const temperature = options.temperature     ?? 0.3;
     const maxTokens   = options.maxOutputTokens ?? 8192;
     const timeoutMs   = options.timeoutMs       ?? 30_000;
@@ -122,8 +122,8 @@ export class GeminiService {
         // 429 Rate Limited — wait 60 seconds before final retry
         if (statusCode === 429) {
           if (attempt < MAX_RETRIES - 1) {
-            logger.warn(`GeminiService: 429 rate-limited. Waiting 60s before retry...`);
-            await sleep(60_000);
+            logger.warn(`GeminiService: 429 rate-limited. Waiting 15s before retry...`);
+            await sleep(15_000);
             continue;
           }
         }
@@ -164,10 +164,10 @@ export class GeminiService {
   static async generateWithImageUrl(
     prompt: string,
     imageUrl: string,
-    mimeType: GeminiImagePart['mimeType'] = 'image/jpeg',
+    mimeType: GeminiFilePart['mimeType'] = 'image/jpeg',
     options: GeminiOptions = {}
   ): Promise<GeminiResult> {
-    const modelName   = options.model           ?? process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+    const modelName   = options.model           ?? process.env.GEMINI_MODEL_FLASH ?? process.env.GEMINI_MODEL ?? 'gemini-1.5-flash';
     const temperature = options.temperature     ?? 0.3;
     const maxTokens   = options.maxOutputTokens ?? 8192;
     const timeoutMs   = options.timeoutMs       ?? 30_000;

@@ -47,7 +47,7 @@ export const up = (pgm) => {
         bullet_points   JSONB NOT NULL DEFAULT '[]',
         keywords        TEXT[] NOT NULL DEFAULT '{}',
         full_summary    TEXT,
-        model_used      TEXT NOT NULL DEFAULT 'gemini-1.5-pro',
+        model_used      TEXT NOT NULL DEFAULT 'gemini-2.5-pro',
         tokens_used     INTEGER NOT NULL DEFAULT 0,
         created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );

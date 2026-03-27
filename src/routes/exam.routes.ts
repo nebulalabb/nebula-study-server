@@ -11,6 +11,8 @@ router.use(authGuard);
 // ── GET Lists
 router.get('/', ExamController.listExams);
 router.get('/history', ExamController.getHistory);
+router.get('/analytics', ExamController.getAnalytics);
+router.get('/:id', ExamController.getExam);
 
 // ── AI Generation (Requires Quota tracking)
 router.post('/generate', quotaGuard('exam'), ExamController.generateExam);

@@ -40,6 +40,63 @@ async function incrementCardCount(setId: string, delta: number) {
 // ──────────────────────────────────────────────────────────────────────────────
 export class FlashcardController {
 
+  // ── 4.1.3.1 POST /flashcard/sets/preview/text ──────────────────────────────
+  static async previewGenerateText(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { text, count = 15, subject } = req.body;
+      if (!text || text.length < 20) throw new AppError('Nội dung quá ngắn', 400, ERROR_CODES.VALIDATION_FAILED);
+
+      const prompt = buildFlashcardPrompt(text, count, subject);
+      const geminiResult = await GeminiService.generate(prompt, [], {
+        systemInstruction: FLASHCARD_SYSTEM_PROMPT,
+        temperature: 0.5,
+      });
+
+      let cards: Array<{ front: string; back: string; hint?: string }>;
+      try {
+        cards = parseFlashcardOutput(geminiResult.text);
+      } catch {
+        throw new AppError('AI trả về định dạng không hợp lệ.', 502, ERROR_CODES.INTERNAL_SERVER_ERROR);
+      }
+
+      await QuotaService.consumeQuota(user.id, user.plan as any, 'flashcard', 'generate_text', geminiResult.tokensUsed, { is_preview: true });
+
+      return sendSuccess(res, { cards });
+    } catch (err) { next(err); }
+  }
+
+  // ── 4.1.3.2 POST /flashcard/sets/preview/pdf ───────────────────────────────
+  static async previewGeneratePdf(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const multerFile = req.file;
+      if (!multerFile) throw new AppError('File PDF là bắt buộc', 400, ERROR_CODES.VALIDATION_FAILED);
+      const count = parseInt(req.body.count || '15', 10);
+      const subject = req.body.subject;
+
+      // 1. Call Gemini with PDF part
+      const prompt = buildFlashcardPdfPrompt('Tài liệu PDF đính kèm', count, subject);
+      const geminiResult = await GeminiService.generate(prompt, [
+        { type: 'document', mimeType: 'application/pdf', data: multerFile.buffer.toString('base64') }
+      ], {
+        systemInstruction: FLASHCARD_SYSTEM_PROMPT,
+        temperature: 0.5,
+      });
+
+      let cards: Array<{ front: string; back: string; hint?: string }>;
+      try {
+        cards = parseFlashcardOutput(geminiResult.text);
+      } catch {
+        throw new AppError('AI trả về định dạng không hợp lệ.', 502, ERROR_CODES.INTERNAL_SERVER_ERROR);
+      }
+
+      await QuotaService.consumeQuota(user.id, user.plan as any, 'flashcard', 'generate_pdf', geminiResult.tokensUsed, { is_preview: true });
+
+      return sendSuccess(res, { cards });
+    } catch (err) { next(err); }
+  }
+
   // ── 4.1.4 GET /flashcard/sets ──────────────────────────────────────────────
   static async listSets(req: Request, res: Response, next: NextFunction) {
     try {
@@ -159,13 +216,11 @@ export class FlashcardController {
         streamifier.createReadStream(multerFile.buffer).pipe(stream);
       });
 
-      // 2. Extract text from PDF buffer using simple UTF-8 text extraction
-      // (For production, use pdf-parse or send to Gemini directly via fileData)
-      const pdfText = multerFile.buffer.toString('utf8').replace(/[^\x20-\x7E\n\t\u00C0-\u024F]/g, ' ').trim();
-
-      // 3. Call Gemini with extracted text
-      const prompt = buildFlashcardPdfPrompt(pdfText || 'Tài liệu PDF', cardCount, subject);
-      const geminiResult = await GeminiService.generate(prompt, [], {
+      // 2. Call Gemini with PDF part
+      const prompt = buildFlashcardPdfPrompt('Tài liệu PDF đính kèm', cardCount, subject);
+      const geminiResult = await GeminiService.generate(prompt, [
+        { type: 'document', mimeType: 'application/pdf', data: multerFile.buffer.toString('base64') }
+      ], {
         systemInstruction: FLASHCARD_SYSTEM_PROMPT,
         temperature: 0.5,
       });
@@ -447,6 +502,149 @@ export class FlashcardController {
         interval_days: next.interval_days,
         repetition: next.repetition,
       });
+    } catch (err) { next(err); }
+  }
+
+  // ── 4.1.9 GET /flashcard/stats ───────────────────────────────────────────
+  static async getStats(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+
+      // 1. Total cards reviewed (distinct flashcard_id from schedules)
+      const reviewedRow = await db.queryOne<{ count: string }>(
+        'SELECT COUNT(*) as count FROM review_schedules WHERE user_id = $1 AND last_reviewed_at IS NOT NULL',
+        [user.id]
+      );
+      const totalReviewed = parseInt(reviewedRow?.count ?? '0', 10);
+
+      // 2. Memory rate (percentage of cards with easiness_factor > 2.0 or interval > 6)
+      // This is a simplified proxy for "mastered" cards
+      const masteredRow = await db.queryOne<{ count: string }>(
+        `SELECT COUNT(*) as count FROM review_schedules 
+         WHERE user_id = $1 AND last_reviewed_at IS NOT NULL AND (interval_days >= 7 OR easiness_factor >= 2.4)`,
+        [user.id]
+      );
+      const masteredCount = parseInt(masteredRow?.count ?? '0', 10);
+      const memoryRate = totalReviewed > 0 ? Math.round((masteredCount / totalReviewed) * 100) : 0;
+
+      // 3. Current streak from users table
+      const userRow = await db.queryOne<{ streak: number }>('SELECT streak FROM users WHERE id = $1', [user.id]);
+      const streak = userRow?.streak ?? 0;
+
+      return sendSuccess(res, {
+        total_reviewed: totalReviewed,
+        mastered_count: masteredCount,
+        memory_rate: memoryRate,
+        streak,
+      });
+    } catch (err) { next(err); }
+  }
+
+  // ── 4.1.14 POST /flashcard/cards/:card_id/image ──────────────────────────
+  static async uploadCardImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { card_id } = req.params;
+      const multerFile = (req as any).file as Express.Multer.File | undefined;
+
+      if (!multerFile) throw new AppError('File ảnh là bắt buộc', 400, ERROR_CODES.VALIDATION_FAILED);
+
+      // 1. Check card ownership
+      const card = await db.queryOne<{ id: string }>(
+        `SELECT f.id FROM flashcards f
+         JOIN flashcard_sets fs ON fs.id = f.set_id
+         WHERE f.id = $1 AND fs.user_id = $2`,
+        [card_id, user.id]
+      );
+      if (!card) throw new AppError('Không tìm thấy thẻ hoặc bạn không có quyền', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      // 2. Upload to Cloudinary
+      const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: `nebulalab/flashcards/${user.id}` },
+          (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+            if (err || !result) return reject(err || new Error('Upload failed'));
+            resolve(result);
+          }
+        );
+        streamifier.createReadStream(multerFile.buffer).pipe(stream);
+      });
+
+      // 3. Update card in DB
+      await db.query('UPDATE flashcards SET image_url = $1 WHERE id = $2', [uploadResult.secure_url, card_id]);
+
+      return sendSuccess(res, { image_url: uploadResult.secure_url, message: 'Đã tải ảnh lên thành công!' });
+    } catch (err) { next(err); }
+  }
+
+  // ── 4.1.12 GET /flashcard/public/:token ──────────────────────────────────
+  static async getPublicSet(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token } = req.params;
+
+      const set = await db.queryOne(
+        `SELECT id, title, description, subject, card_count, user_id, created_at
+         FROM flashcard_sets 
+         WHERE share_token = $1 AND is_public = TRUE AND deleted_at IS NULL`,
+        [token]
+      );
+      if (!set) throw new AppError('Không tìm thấy bộ thẻ công khai này', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const { rows: cards } = await db.query(
+        'SELECT front, back, hint, image_url, sort_order FROM flashcards WHERE set_id = $1 ORDER BY sort_order',
+        [set.id]
+      );
+
+      return sendSuccess(res, { ...set, cards });
+    } catch (err) { next(err); }
+  }
+
+  // ── 4.1.13 POST /flashcard/sets/:id/clone ─────────────────────────────────
+  static async cloneSet(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { set_id } = req.params;
+
+      // 1. Get source set (must be public or owned by user)
+      const sourceSet = await db.queryOne(
+        `SELECT * FROM flashcard_sets 
+         WHERE id = $1 AND (is_public = TRUE OR user_id = $2) AND deleted_at IS NULL`,
+        [set_id, user.id]
+      );
+      if (!sourceSet) throw new AppError('Không tìm thấy bộ thẻ để sao chép', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const { rows: sourceCards } = await db.query(
+        'SELECT front, back, hint, image_url, sort_order FROM flashcards WHERE set_id = $1',
+        [set_id]
+      );
+
+      // 2. Insert new set + cards in transaction
+      const client = await db.getClient();
+      let newSetId: string;
+      try {
+        await client.query('BEGIN');
+        const setRow = await client.query<{ id: string }>(
+          `INSERT INTO flashcard_sets (user_id, title, description, subject, source_type, card_count, is_public)
+           VALUES ($1, $2, $3, $4, 'manual', $5, FALSE) RETURNING id`,
+          [user.id, `${sourceSet.title} (Bản sao)`, sourceSet.description, sourceSet.subject, sourceCards.length]
+        );
+        newSetId = setRow.rows[0]!.id;
+
+        for (const c of sourceCards) {
+          await client.query(
+            'INSERT INTO flashcards (set_id, front, back, hint, image_url, sort_order) VALUES ($1, $2, $3, $4, $5, $6)',
+            [newSetId, c.front, c.back, c.hint, c.image_url, c.sort_order]
+          );
+        }
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      return sendSuccess(res, { id: newSetId, message: 'Đã sao chép bộ thẻ thành công!' }, {}, 201);
     } catch (err) { next(err); }
   }
 }

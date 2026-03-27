@@ -11,6 +11,8 @@ const router = Router();
 router.get('/share/:share_token', QuizController.getSharedQuiz);
 // Nộp kết quả (chấm điểm)
 router.post('/:quiz_id/attempt', optionalAuthGuard, QuizController.submitAttempt);
+// Lấy chi tiết kết quả một lượt làm (Public/Auth)
+router.get('/share/:share_token/result/:attempt_id', QuizController.getResult);
 
 // ── Protected Routes
 router.use(authGuard);
@@ -23,6 +25,9 @@ router.post('/generate/text', quotaGuard('quiz'), QuizController.generateFromTex
 
 // Generate Quiz từ file (PDF/Docx)
 router.post('/generate/pdf', quotaGuard('quiz'), documentUpload.single('file'), QuizController.generateFromPdf);
+
+// Lưu chính thức đề thi sau khi preview
+router.post('/', QuizController.saveQuiz);
 
 // Lấy lịch sử làm bài (Attempts)
 router.get('/:quiz_id/attempts', QuizController.getAttempts);

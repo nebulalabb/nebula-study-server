@@ -14,11 +14,11 @@ import streamifier from 'streamifier';
 import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 
 // ── Helper: parse Gemini JSON object ─────────────────────────────────────────
-function parseNoteOutput(text: string): { short_summary: string; bullet_points: string[]; keywords: string[] } {
+function parseNoteOutput(text: string): { summary: string; bullet_points: string[]; keywords: { term: string; explanation: string }[] } {
   const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
   try {
     const parsed = JSON.parse(cleaned);
-    if (parsed.short_summary && Array.isArray(parsed.bullet_points) && Array.isArray(parsed.keywords)) {
+    if (parsed.summary && Array.isArray(parsed.bullet_points) && Array.isArray(parsed.keywords)) {
       return parsed;
     }
     throw new Error('Invalid structure');
@@ -76,16 +76,45 @@ export class NoteController {
     } catch (err) { next(err); }
   }
 
-  // ── 5.1.2 POST /note/summarize ────────────────────────────────────────────
+  // ── 5.1.5 GET /note/:note_id ─────────────────────────────────────────────
+  static async getNote(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { note_id } = req.params;
+
+      const { rows } = await db.query(
+        `SELECT n.*, s.summary_short as "summary_text", s.bullet_points, s.keywords
+         FROM notes n
+         JOIN note_summaries s ON n.id = s.note_id
+         WHERE n.id = $1 AND n.user_id = $2 AND n.deleted_at IS NULL
+         ORDER BY s.created_at DESC
+         LIMIT 1`,
+        [note_id, user.id]
+      );
+
+      if (rows.length === 0) throw new AppError('Không tìm thấy ghi chú', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const note = rows[0];
+      return sendSuccess(res, {
+        ...note,
+        summary: {
+          summary: note.summary_text,
+          bullet_points: note.bullet_points,
+          keywords: note.keywords
+        }
+      });
+    } catch (err) { next(err); }
+  }
+
+  // ── 5.1.2 POST /note/summarize ──────────────────────────────────────────── (Preview Only)
   static async summarizeText(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user!;
-      const { text, title, tags = [] } = req.body;
+      const { text, subject } = req.body;
 
       if (!text || typeof text !== 'string' || text.trim().length < 50) {
         throw new AppError('text phải có ít nhất 50 ký tự để tóm tắt', 400, ERROR_CODES.VALIDATION_FAILED);
       }
-      const noteTitle = title || 'Ghi chú văn bản';
 
       // 1. Call Gemini
       const prompt = buildNotePrompt(text.trim());
@@ -102,54 +131,24 @@ export class NoteController {
         throw new AppError('AI trả về định dạng không hợp lệ. Vui lòng thử lại.', 502, ERROR_CODES.INTERNAL_SERVER_ERROR);
       }
 
-      const wordCount = text.trim().split(/\s+/).length;
-      const finalTags = Array.isArray(tags) && tags.length > 0 ? tags : summaryData.keywords.slice(0, 3);
+      await QuotaService.consumeQuota(user.id, user.plan as any, 'note', 'summarize_text', geminiResult.tokensUsed, { is_preview: true });
 
-      // 3. Insert specific Note & Summary in transaction
-      const client = await db.getClient();
-      let noteId: string;
-      try {
-        await client.query('BEGIN');
-        
-        const noteRow = await client.query<{ id: string }>(
-          `INSERT INTO notes (user_id, title, source_type, source_content, word_count, tags)
-           VALUES ($1, $2, 'text', $3, $4, $5) RETURNING id`,
-          [user.id, noteTitle, text.trim(), wordCount, finalTags]
-        );
-        noteId = noteRow.rows[0]!.id;
-
-        await client.query(
-          `INSERT INTO note_summaries (note_id, summary_short, bullet_points, keywords, tokens_used)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [noteId, summaryData.short_summary, JSON.stringify(summaryData.bullet_points), summaryData.keywords, geminiResult.tokensUsed]
-        );
-
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
-
-      await QuotaService.consumeQuota(user.id, user.plan as any, 'note', 'summarize_text', geminiResult.tokensUsed, { note_id: noteId });
-      const quota = await QuotaService.checkQuota(user.id, user.plan as any, 'note');
-
-      return sendSuccess(res, { note_id: noteId, ...summaryData }, { quota_remaining: quota.remaining }, 201);
+      return sendSuccess(res, { ...summaryData, word_count: text.trim().split(/\s+/).length });
     } catch (err) { next(err); }
   }
 
-  // ── 5.1.3 POST /note/summarize/file ───────────────────────────────────────
+  // ── 5.1.3 POST /note/summarize/file ─────────────────────────────────────── (Preview Only)
   static async summarizeFile(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user!;
       const multerFile = (req as any).file as Express.Multer.File | undefined;
       if (!multerFile) throw new AppError('File là bắt buộc', 400, ERROR_CODES.VALIDATION_FAILED);
 
-      const title = req.body.title || multerFile.originalname || 'Ghi chú tài liệu';
-      const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
+      const mimeType = multerFile.mimetype as any;
+      const isPdf = multerFile.mimetype.includes('pdf');
+      const isDocx = multerFile.mimetype.includes('wordprocessingml');
 
-      // 1. Upload to Cloudinary
+      // 1. Upload metadata to Cloudinary (for future storage reference)
       const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: `nebulalab/notes-docs/${user.id}`, resource_type: 'raw' },
@@ -161,15 +160,11 @@ export class NoteController {
         streamifier.createReadStream(multerFile.buffer).pipe(stream);
       });
 
-      // 2. Read Text (Fallback to raw string)
-      const rawText = multerFile.buffer.toString('utf8').replace(/[^\x20-\x7E\n\t\u00C0-\u024F]/g, ' ').trim();
-      if (rawText.length < 50) {
-        throw new AppError('Không thể trích xuất văn bản hợp lệ từ file này', 422, ERROR_CODES.VALIDATION_FAILED);
-      }
-
-      // 3. Call Gemini
-      const prompt = buildNoteFilePrompt(rawText);
-      const geminiResult = await GeminiService.generate(prompt, [], {
+      // 2. Call Gemini directly with binary buffer (base64)
+      const prompt = buildNoteFilePrompt('Tài liệu đính kèm');
+      const geminiResult = await GeminiService.generate(prompt, [
+        { type: 'document', mimeType, data: multerFile.buffer.toString('base64') }
+      ], {
         systemInstruction: NOTE_SYSTEM_PROMPT,
         temperature: 0.3,
       });
@@ -181,27 +176,52 @@ export class NoteController {
         throw new AppError('AI trả về định dạng không hợp lệ.', 502, ERROR_CODES.INTERNAL_SERVER_ERROR);
       }
 
-      const wordCount = rawText.split(/\s+/).length;
-      const finalTags = Array.isArray(tags) && tags.length > 0 ? tags : summaryData.keywords.slice(0, 3);
-      const sourceType = multerFile.mimetype.includes('pdf') ? 'pdf' : 'docx';
+      await QuotaService.consumeQuota(user.id, user.plan as any, 'note', 'summarize_file', geminiResult.tokensUsed, { is_preview: true });
 
-      // 4. Save
+      return sendSuccess(res, { 
+        ...summaryData, 
+        source_url: uploadResult.secure_url, 
+        source_type: isPdf ? 'pdf' : 'docx',
+        source_filename: multerFile.originalname
+      });
+    } catch (err) { next(err); }
+  }
+
+
+  // ── 5.1.8 POST /note — Final Save ──────────────────────────────────────────
+  static async saveNote(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { 
+        title, 
+        source_type, 
+        source_url, 
+        source_filename, 
+        source_content, 
+        summary, 
+        bullet_points, 
+        keywords, 
+        tags = [] 
+      } = req.body;
+
+      if (!title) throw new AppError('Tiêu đề là bắt buộc', 400, ERROR_CODES.VALIDATION_FAILED);
+
       const client = await db.getClient();
       let noteId: string;
       try {
         await client.query('BEGIN');
-        
+
         const noteRow = await client.query<{ id: string }>(
-          `INSERT INTO notes (user_id, title, source_type, source_url, word_count, tags)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [user.id, title, sourceType, uploadResult.secure_url, wordCount, finalTags]
+          `INSERT INTO notes (user_id, title, source_type, source_url, source_filename, source_content, tags)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [user.id, title, source_type, source_url || null, source_filename || null, source_content || null, tags]
         );
         noteId = noteRow.rows[0]!.id;
 
         await client.query(
-          `INSERT INTO note_summaries (note_id, summary_short, bullet_points, keywords, tokens_used)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [noteId, summaryData.short_summary, JSON.stringify(summaryData.bullet_points), summaryData.keywords, geminiResult.tokensUsed]
+          `INSERT INTO note_summaries (note_id, summary_short, bullet_points, keywords)
+           VALUES ($1, $2, $3, $4)`,
+          [noteId, summary, JSON.stringify(bullet_points), JSON.stringify(keywords)]
         );
 
         await client.query('COMMIT');
@@ -212,33 +232,34 @@ export class NoteController {
         client.release();
       }
 
-      await QuotaService.consumeQuota(user.id, user.plan as any, 'note', 'summarize_file', geminiResult.tokensUsed, { note_id: noteId });
-
-      return sendSuccess(res, { note_id: noteId, file_url: uploadResult.secure_url, ...summaryData }, {}, 201);
+      return sendSuccess(res, { note_id: noteId }, {}, 201);
     } catch (err) { next(err); }
   }
 
-  // ── 5.1.5 GET /note/:note_id ──────────────────────────────────────────────
-  static async getNote(req: Request, res: Response, next: NextFunction) {
+  // ── 5.1.9 GET /note/search ────────────────────────────────────────────────
+  static async searchNotes(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user!;
-      const { note_id } = req.params;
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      if (!q) return sendSuccess(res, { items: [] });
 
-      const note = await db.queryOne(
-        'SELECT * FROM notes WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
-        [note_id, user.id]
+      const { rows } = await db.query(
+        `SELECT n.id, n.title, n.source_type, n.tags, s.summary_short as "summary", n.created_at,
+                ts_rank(to_tsvector('simple', n.title), to_tsquery('simple', $2)) +
+                ts_rank(to_tsvector('simple', s.summary_short), to_tsquery('simple', $2)) as rank
+         FROM notes n
+         JOIN note_summaries s ON n.id = s.note_id
+         WHERE n.user_id = $1 AND n.deleted_at IS NULL
+           AND (to_tsvector('simple', n.title) @@ to_tsquery('simple', $2)
+             OR to_tsvector('simple', s.summary_short) @@ to_tsquery('simple', $2))
+         ORDER BY rank DESC
+         LIMIT 20`,
+        [user.id, q.trim().split(/\s+/).join(' & ')]
       );
-      if (!note) throw new AppError('Không tìm thấy ghi chú', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
 
-      const summary = await db.queryOne(
-        'SELECT summary_short, bullet_points, keywords, full_summary FROM note_summaries WHERE note_id = $1',
-        [note_id]
-      );
-
-      return sendSuccess(res, { ...note, summary });
+      return sendSuccess(res, { items: rows });
     } catch (err) { next(err); }
   }
-
   // ── 5.1.6 PATCH /note/:note_id ────────────────────────────────────────────
   static async updateNote(req: Request, res: Response, next: NextFunction) {
     try {

@@ -18,7 +18,7 @@ export const up = (pgm) => {
         "solver_daily_limit": 5,
         "summary_daily_limit": 3,
         "quiz_daily_limit": 1,
-        "ai_model": "gemini-1.5-flash",
+        "ai_model": "gemini-2.5-flash",
         "storage_mb": 100
     }', 1),
     ('premium_monthly', 'Premium Tháng', 99000, 'monthly', '{
@@ -26,7 +26,7 @@ export const up = (pgm) => {
         "solver_daily_limit": -1,
         "summary_daily_limit": -1,
         "quiz_daily_limit": -1,
-        "ai_model": "gemini-1.5-pro",
+        "ai_model": "gemini-2.5-pro",
         "storage_mb": 5000
     }', 2),
     ('premium_yearly', 'Premium Năm', 799000, 'yearly', '{
@@ -34,7 +34,7 @@ export const up = (pgm) => {
         "solver_daily_limit": -1,
         "summary_daily_limit": -1,
         "quiz_daily_limit": -1,
-        "ai_model": "gemini-1.5-pro",
+        "ai_model": "gemini-2.5-pro",
         "storage_mb": 10000
     }', 3)
     ON CONFLICT (name) DO NOTHING;

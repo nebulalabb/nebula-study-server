@@ -51,3 +51,31 @@ export function buildSolverImagePrompt(additionalContext?: string): string {
   const ctx = additionalContext ? `\nThông tin bổ sung: ${additionalContext}` : '';
   return `Hãy đọc và giải bài tập trong ảnh đính kèm.${ctx}`;
 }
+/**
+ * Build a follow-up prompt for "Ask More" (Hỏi thêm).
+ * Context includes the original question and the previous solution.
+ */
+export function buildFollowUpPrompt(
+  originalQuestion: string,
+  previousSolution: string,
+  userFollowUp: string,
+  subject?: string
+): string {
+  const subjectHint = subject && subject !== 'general' ? `\n[Môn học: ${subject}]` : '';
+  
+  return `${subjectHint}
+---
+Dưới đây là ngữ cảnh của bài tập chúng ta đang giải:
+
+**Câu hỏi gốc:**
+${originalQuestion}
+
+**Lời giải trước đó của bạn:**
+${previousSolution}
+---
+
+**Người dùng có thắc mắc thêm:**
+"${userFollowUp}"
+
+Hãy giải thích chi tiết thắc mắc này dựa trên lời giải trên. Vẫn tuân thủ định dạng JSON với các bước giải thích rõ ràng.`;
+}

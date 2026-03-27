@@ -3,7 +3,7 @@ import { GeminiService } from '../services/gemini.service.js';
 import { QuotaService } from '../services/quota.service.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 import { AppError, ERROR_CODES } from '../utils/AppError.js';
-import { SOLVER_SYSTEM_PROMPT, buildSolverPrompt, buildSolverImagePrompt } from '../utils/solver-prompt.js';
+import { SOLVER_SYSTEM_PROMPT, buildSolverPrompt, buildSolverImagePrompt, buildFollowUpPrompt } from '../utils/solver-prompt.js';
 import cloudinary from '../utils/cloudinary.js';
 import { db } from '../db/index.js';
 import streamifier from 'streamifier';
@@ -34,7 +34,14 @@ export class SolverController {
     const startMs = Date.now();
     try {
       const user = req.user!;
-      const { question_text, subject } = req.body;
+      const { question_text, subject, parent_id } = req.body;
+
+      if (!question_text || typeof question_text !== 'string' || question_text.trim().length < 5) {
+        throw new AppError('question_text phải có ít nhất 5 ký tự', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
+      if (question_text.length > 5000) {
+        throw new AppError('question_text không được vượt quá 5000 ký tự', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
 
       if (!question_text || typeof question_text !== 'string' || question_text.trim().length < 5) {
         throw new AppError('question_text phải có ít nhất 5 ký tự', 400, ERROR_CODES.VALIDATION_FAILED);
@@ -44,7 +51,22 @@ export class SolverController {
       }
 
       // 1. Build prompt and call Gemini
-      const userPrompt = buildSolverPrompt(question_text.trim(), subject);
+      let userPrompt = '';
+      if (parent_id) {
+        // Fetch context from parent
+        const parent = await db.queryOne(
+          'SELECT question_text, solution FROM solve_histories WHERE id = $1 AND user_id = $2',
+          [parent_id, user.id]
+        );
+        if (parent) {
+          userPrompt = buildFollowUpPrompt(parent.question_text || 'Bài tập qua ảnh', parent.solution, question_text.trim(), subject);
+        } else {
+          userPrompt = buildSolverPrompt(question_text.trim(), subject);
+        }
+      } else {
+        userPrompt = buildSolverPrompt(question_text.trim(), subject);
+      }
+
       const geminiResult = await GeminiService.generate(userPrompt, [], {
         systemInstruction: SOLVER_SYSTEM_PROMPT,
         temperature: 0.3,
@@ -64,8 +86,8 @@ export class SolverController {
       // 3. Persist to solve_histories
       const { rows } = await db.query(
         `INSERT INTO solve_histories
-           (user_id, subject, question_text, input_type, solution, steps, explanation, confidence, tokens_used, model_version, solve_time_ms)
-         VALUES ($1, $2, $3, 'text', $4, $5, $6, $7, $8, $9, $10)
+           (user_id, subject, question_text, input_type, solution, steps, explanation, confidence, tokens_used, model_version, solve_time_ms, parent_id)
+         VALUES ($1, $2, $3, 'text', $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id, created_at`,
         [
           user.id,
@@ -78,6 +100,7 @@ export class SolverController {
           geminiResult.tokensUsed,
           geminiResult.modelVersion,
           solveTimeMs,
+          parent_id || null,
         ]
       );
       const history = rows[0]!;
@@ -132,6 +155,7 @@ export class SolverController {
 
       const additionalContext = req.body.context as string | undefined;
       const subject = req.body.subject as string | undefined;
+      const parent_id = req.body.parent_id as string | undefined;
 
       // 1. Upload image to Cloudinary
       const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
@@ -171,8 +195,8 @@ export class SolverController {
       // 4. Save to DB
       const { rows } = await db.query(
         `INSERT INTO solve_histories
-           (user_id, subject, question_image_url, input_type, solution, steps, explanation, confidence, tokens_used, model_version, solve_time_ms)
-         VALUES ($1, $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10)
+           (user_id, subject, question_image_url, input_type, solution, steps, explanation, confidence, tokens_used, model_version, solve_time_ms, parent_id)
+         VALUES ($1, $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id, created_at`,
         [
           user.id,
@@ -185,6 +209,7 @@ export class SolverController {
           geminiResult.tokensUsed,
           geminiResult.modelVersion,
           solveTimeMs,
+          parent_id || null,
         ]
       );
       const history = rows[0]!;
@@ -255,6 +280,32 @@ export class SolverController {
           total_pages: Math.ceil(totalCount / limit),
         },
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * 3.1.6.1 — GET /solver/history/:id
+   */
+  static async getHistoryById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+
+      const history = await db.queryOne(
+        `SELECT id, subject, question_text, question_image_url, input_type,
+                solution, steps, explanation, confidence, tokens_used, solve_time_ms, created_at, parent_id
+         FROM solve_histories
+         WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [id, user.id]
+      );
+
+      if (!history) {
+        throw new AppError('Không tìm thấy lịch sử giải bài', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+      }
+
+      return sendSuccess(res, history);
     } catch (err) {
       next(err);
     }

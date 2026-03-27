@@ -34,6 +34,23 @@ export class ExamController {
     } catch (err) { next(err); }
   }
 
+  // ── 8.1.3.1 GET /exam/:id ──────────────────────────────────────────────────
+  static async getExam(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+
+      const exam = await db.queryOne(`
+        SELECT * FROM exams 
+        WHERE id = $1 AND deleted_at IS NULL AND (is_public = TRUE OR creator_id = $2)
+      `, [id, user.id]);
+
+      if (!exam) throw new AppError('Đề thi không tồn tại hoặc bạn không có quyền truy cập', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      return sendSuccess(res, exam);
+    } catch (err) { next(err); }
+  }
+
   // ── 8.1.4 POST /exam/:exam_id/attempt/start ────────────────────────────────
   static async startAttempt(req: Request, res: Response, next: NextFunction) {
     try {
@@ -254,7 +271,7 @@ export class ExamController {
         await client.query('COMMIT');
         
         // Consume quota
-        await QuotaService.consumeQuota(user.id, 'exam');
+        await QuotaService.consumeQuota(user.id, user.plan as any, 'exam', 'generate');
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
@@ -263,6 +280,36 @@ export class ExamController {
       }
 
       return sendSuccess(res, { message: 'Sinh đề thành công', exam_id: newExamId });
+    } catch (err) { next(err); }
+  }
+
+  // ── 8.1.9 GET /exam/analytics (Phân tích điểm yếu) ─────────────────────────
+  static async getAnalytics(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      
+      const { rows } = await db.query(`
+        WITH topic_data AS (
+          SELECT 
+            eq.topic_tag,
+            aa.is_correct,
+            aa.points_earned
+          FROM exam_attempts ea
+          JOIN attempt_answers aa ON ea.id = aa.attempt_id
+          JOIN exam_questions eq ON aa.question_id = eq.id
+          WHERE ea.user_id = $1 AND ea.status = 'submitted'
+        )
+        SELECT 
+          topic_tag,
+          COUNT(*) as total_questions,
+          SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count,
+          ROUND(AVG(CASE WHEN is_correct THEN 100 ELSE 0 END), 2) as success_rate
+        FROM topic_data
+        GROUP BY topic_tag
+        ORDER BY success_rate ASC
+      `, [user.id]);
+
+      return sendSuccess(res, { analytics: rows });
     } catch (err) { next(err); }
   }
 

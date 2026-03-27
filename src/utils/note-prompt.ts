@@ -11,15 +11,15 @@ Phân tích văn bản được cung cấp và tạo ra một bản tóm tắt s
 ## Định dạng phản hồi BẮT BUỘC (JSON Object)
 Trả về ĐÚNG một JSON object, KHÔNG có markdown code block, theo cấu trúc:
 {
-  "short_summary": "Đoạn tóm tắt tổng quan 2-3 câu về cốt lõi của tài liệu.",
   "bullet_points": [
-    "Ý chính 1, hỗ trợ LaTeX $$...$$ nếu có công thức",
+    "Ý chính 1, hỗ trợ LaTeX $$...$$ cho công thức",
     "Ý chính 2...",
     "Ý chính 3..."
   ],
+  "summary": "Đoạn văn 3-5 câu tóm tắt toàn bộ nội dung cốt lõi của tài liệu.",
   "keywords": [
-    "Từ khóa 1",
-    "Từ khóa 2"
+    { "term": "Thuật ngữ 1", "explanation": "Giải thích ngắn gọn 1 câu" },
+    { "term": "Thuật ngữ 2", "explanation": "Giải thích ngắn gọn 1 câu" }
   ]
 }
 

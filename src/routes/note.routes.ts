@@ -12,6 +12,12 @@ router.use(authGuard);
 // ── 5.1.4 GET /note
 router.get('/', NoteController.listNotes);
 
+// ── 5.1.9 GET /note/search
+router.get('/search', NoteController.searchNotes);
+
+// ── 5.1.8 POST /note (Final Save)
+router.post('/', NoteController.saveNote);
+
 // ── 5.1.2 POST /note/summarize
 router.post('/summarize', quotaGuard('note'), NoteController.summarizeText);
 

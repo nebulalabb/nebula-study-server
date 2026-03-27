@@ -14,5 +14,6 @@ router.get('/today', MicrolearnController.getTodayLessons);
 router.post('/lesson/:lesson_id/complete', MicrolearnController.completeLesson);
 
 router.get('/streak', MicrolearnController.getStreak);
+router.get('/history', MicrolearnController.listHistory);
 
 export default router;

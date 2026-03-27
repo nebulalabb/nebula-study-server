@@ -32,8 +32,12 @@ export class TutorController {
         const tutorId = profiles[0].id;
 
         // 2. Insert Subjects
+        const ALLOWED_SUBJECTS = ['Toán học', 'Tiếng Anh'];
         if (subjects && Array.isArray(subjects)) {
           for (const s of subjects) {
+            if (!ALLOWED_SUBJECTS.includes(s.subject)) {
+              throw new AppError(`Môn học ${s.subject} chưa được hỗ trợ ở Phase 1`, 400, ERROR_CODES.VALIDATION_FAILED);
+            }
             await client.query(`
               INSERT INTO tutor_subjects (tutor_id, subject, grade_levels, proficiency)
               VALUES ($1, $2, $3, $4)
@@ -62,10 +66,27 @@ export class TutorController {
     } catch (err) { next(err); }
   }
 
-  // ── 10.1.3 GET /tutor ─────────────────────────────────────────────────────
+  // ── 10.1.3 GET /tutor/my-profile ──────────────────────────────────────────
+  static async getMyProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const profile = await db.queryOne(`
+        SELECT p.*, u.full_name, u.avatar_url
+        FROM tutor_profiles p JOIN users u ON p.user_id = u.id
+        WHERE p.user_id = $1 AND p.deleted_at IS NULL
+      `, [user.id]);
+      
+      if (!profile) return sendSuccess(res, { profile: null });
+      
+      const { rows: subjects } = await db.query(`SELECT * FROM tutor_subjects WHERE tutor_id = $1`, [profile.id]);
+      return sendSuccess(res, { profile, subjects });
+    } catch (err) { next(err); }
+  }
+
+  // ── 10.1.4 GET /tutor ─────────────────────────────────────────────────────
   static async searchTutors(req: Request, res: Response, next: NextFunction) {
     try {
-      const { subject, limit = 20, offset = 0 } = req.query;
+      const { subject, min_rating, price_min, price_max, date, limit = 20, offset = 0 } = req.query;
 
       let q = `
         SELECT p.id, p.hourly_rate_vnd, p.rating_avg, p.review_count, p.experience_years, u.full_name, u.avatar_url,
@@ -77,20 +98,55 @@ export class TutorController {
       `;
 
       const params: any[] = [];
-      let paramIndex = 1;
+      let pi = 1;
 
       if (subject) {
-        q += ' AND EXISTS (SELECT 1 FROM tutor_subjects ts2 WHERE ts2.tutor_id = p.id AND ts2.subject = $' + paramIndex + ')';
+        q += ' AND EXISTS (SELECT 1 FROM tutor_subjects ts2 WHERE ts2.tutor_id = p.id AND ts2.subject = $' + pi + ')';
         params.push(subject);
-        paramIndex++;
+        pi++;
       }
 
-      q += ' GROUP BY p.id, u.id ORDER BY p.rating_avg DESC, p.review_count DESC LIMIT $' + paramIndex + ' OFFSET $' + (paramIndex + 1);
-      params.push(Number(limit));
-      params.push(Number(offset));
+      if (min_rating) {
+        q += ' AND p.rating_avg >= $' + pi;
+        params.push(Number(min_rating));
+        pi++;
+      }
 
-      const { rows } = await db.query(q, params);
-      return sendSuccess(res, { items: rows });
+      if (price_min) {
+        q += ' AND p.hourly_rate_vnd >= $' + pi;
+        params.push(Number(price_min));
+        pi++;
+      }
+
+      if (price_max) {
+        q += ' AND p.hourly_rate_vnd <= $' + pi;
+        params.push(Number(price_max));
+        pi++;
+      }
+
+      if (date) {
+        const dayOfWeek = new Date(date as string).getDay();
+        q += ' AND EXISTS (SELECT 1 FROM tutor_availabilities ta WHERE ta.tutor_id = p.id AND ta.day_of_week = $' + pi + ' AND ta.is_active = TRUE)';
+        params.push(dayOfWeek);
+        pi++;
+      }
+
+       q += ' GROUP BY p.id, u.id ORDER BY p.rating_avg DESC, p.review_count DESC LIMIT $' + (pi++) + ' OFFSET $' + pi;
+       params.push(Number(limit));
+       params.push(Number(offset));
+
+       const [ { rows: items }, { rows: countRow } ] = await Promise.all([
+         db.query(q, params),
+         db.query(`SELECT COUNT(*)::int as count FROM tutor_profiles WHERE status = 'approved' AND is_available = TRUE AND deleted_at IS NULL`)
+       ]);
+
+       const totalCount = countRow[0]?.count ? Number(countRow[0].count) : 0;
+       console.log('Search results count:', items.length, 'Global count:', totalCount);
+
+       return sendSuccess(res, { 
+         items, 
+         total: totalCount
+       });
     } catch (err) { next(err); }
   }
 
@@ -121,6 +177,113 @@ export class TutorController {
     } catch (err) { next(err); }
   }
 
+  // ── 10.1.13 GET /tutor/:id/availability ──────────────────────────────────
+  static async getDayAvailability(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { date } = req.query; // format YYYY-MM-DD
+
+      if (!date) throw new AppError('Thiếu ngày cần xem', 400, ERROR_CODES.VALIDATION_FAILED);
+
+      const dayOfWeek = new Date(date as string).getDay();
+
+      // 1. Get base availabilities
+      const { rows: slots } = await db.query(`
+        SELECT start_time, end_time FROM tutor_availabilities 
+        WHERE tutor_id = $1 AND day_of_week = $2 AND is_active = TRUE
+      `, [id, dayOfWeek]);
+
+      // 2. Get existing confirmed bookings for this day
+      const { rows: bookings } = await db.query(`
+        SELECT start_time, end_time FROM bookings
+        WHERE tutor_id = $1 AND session_date = $2 AND status IN ('confirmed', 'completed')
+      `, [id, date]);
+
+      return sendSuccess(res, { date, slots, bookings });
+    } catch (err) { next(err); }
+  }
+
+  // ── 10.1.10 PATCH /tutor/profile ──────────────────────────────────────────
+  static async updateProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { bio, education, experience_years, hourly_rate_vnd, teaching_style, video_intro_url } = req.body;
+
+      const profile = await db.queryOne('SELECT id FROM tutor_profiles WHERE user_id = $1', [user.id]);
+      if (!profile) throw new AppError('Không tìm thấy hồ sơ gia sư', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const fields: string[] = [];
+      const vals: any[] = [];
+      let pi = 1;
+
+      if (bio !== undefined) { fields.push(`bio = $${pi++}`); vals.push(bio); }
+      if (education !== undefined) { fields.push(`education = $${pi++}`); vals.push(education); }
+      if (experience_years !== undefined) { fields.push(`experience_years = $${pi++}`); vals.push(experience_years); }
+      if (hourly_rate_vnd !== undefined) { fields.push(`hourly_rate_vnd = $${pi++}`); vals.push(hourly_rate_vnd); }
+      if (teaching_style !== undefined) { fields.push(`teaching_style = $${pi++}`); vals.push(teaching_style); }
+      if (video_intro_url !== undefined) { fields.push(`video_intro_url = $${pi++}`); vals.push(video_intro_url); }
+
+      if (fields.length === 0) throw new AppError('Không có thông tin cập nhật', 400, ERROR_CODES.VALIDATION_FAILED);
+
+      vals.push(profile.id);
+      await db.query(`UPDATE tutor_profiles SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${pi}`, vals);
+
+      return sendSuccess(res, { message: 'Cập nhật hồ sơ thành công' });
+    } catch (err) { next(err); }
+  }
+
+  // ── 10.1.11 PATCH /tutor/availability ─────────────────────────────────────
+  static async updateAvailability(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { availabilities } = req.body; // Array of { day_of_week, start_time, end_time }
+
+      const profile = await db.queryOne('SELECT id FROM tutor_profiles WHERE user_id = $1', [user.id]);
+      if (!profile) throw new AppError('Không tìm thấy hồ sơ gia sư', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      const client = await db.getClient();
+      try {
+        await client.query('BEGIN');
+        
+        // Replace all existing availabilities
+        await client.query('DELETE FROM tutor_availabilities WHERE tutor_id = $1', [profile.id]);
+        
+        if (availabilities && Array.isArray(availabilities)) {
+          for (const a of availabilities) {
+            await client.query(`
+              INSERT INTO tutor_availabilities (tutor_id, day_of_week, start_time, end_time)
+              VALUES ($1, $2, $3, $4)
+            `, [profile.id, a.day_of_week, a.start_time, a.end_time]);
+          }
+        }
+
+        await client.query('COMMIT');
+        return sendSuccess(res, { message: 'Cập nhật lịch rảnh thành công' });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) { next(err); }
+  }
+
+  // ── 10.1.12 PATCH /tutor/profile/toggle-availability ──────────────────────
+  static async toggleAvailability(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { is_available } = req.body;
+
+      const { rowCount } = await db.query(
+        'UPDATE tutor_profiles SET is_available = $1 WHERE user_id = $2',
+        [Boolean(is_available), user.id]
+      );
+      if (rowCount === 0) throw new AppError('Không tìm thấy hồ sơ gia sư', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      return sendSuccess(res, { message: `Đã ${is_available ? 'mở' : 'tạm dừng'} nhận booking` });
+    } catch (err) { next(err); }
+  }
+
   // ── 10.1.5 POST /tutor/:id/book ───────────────────────────────────────────
   static async bookSession(req: Request, res: Response, next: NextFunction) {
     try {
@@ -141,32 +304,60 @@ export class TutorController {
       }
 
       // Calculate end time
-      const startDateTime = new Date(`\${session_date}T\${start_time}`);
+      const startDateTime = new Date(`${session_date}T${start_time}`);
       if (startDateTime.getTime() < Date.now()) {
         throw new AppError('Thời gian đặt lịch phải ở tương lai', 400, ERROR_CODES.VALIDATION_FAILED);
       }
       const endDateTime = new Date(startDateTime.getTime() + duration_minutes * 60000);
       const end_time = endDateTime.toTimeString().split(' ')[0]; // HH:MM:SS
 
-      // Financials
-      const price_vnd = Math.round((tutor.hourly_rate_vnd / 60) * duration_minutes);
-      const commission_rate = 0.12; // 12% fee
-      const commission_vnd = Math.round(price_vnd * commission_rate);
-      const tutor_payout_vnd = price_vnd - commission_vnd;
+      // Conflict Check & Booking in Transaction
+      const client = await db.getClient();
+      try {
+        await client.query('BEGIN');
 
-      const { rows } = await db.query(`
-        INSERT INTO bookings (
-          student_id, tutor_id, subject, session_date, start_time, end_time, duration_minutes,
-          price_vnd, commission_rate, commission_vnd, tutor_payout_vnd, platform, notes, status
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'google_meet', $12, 'pending'
-        ) RETURNING id
-      `, [
-        student.id, tutor_id, subject, session_date, start_time, end_time, duration_minutes,
-        price_vnd, commission_rate, commission_vnd, tutor_payout_vnd, notes
-      ]);
+        // 1. Lock tutor schedule for this day to prevent race conditions
+        // Actually, we just need to check for overlaps
+        const overlap = await client.query(`
+          SELECT 1 FROM bookings 
+          WHERE tutor_id = $1 AND session_date = $2 AND status IN ('confirmed', 'pending')
+          AND (
+            (start_time <= $3 AND end_time > $3) OR
+            (start_time < $4 AND end_time >= $4) OR
+            (start_time >= $3 AND end_time <= $4)
+          ) FOR UPDATE
+        `, [tutor_id, session_date, start_time, end_time]);
 
-      return sendSuccess(res, { message: 'Tạo booking thành công chờ thanh toán', booking_id: rows[0].id, price_vnd });
+        if (overlap.rowCount && overlap.rowCount > 0) {
+          throw new AppError('Khung giờ này đã có người đặt hoặc đang chờ thanh toán', 400, ERROR_CODES.VALIDATION_FAILED);
+        }
+
+        // 2. Financials
+        const price_vnd = Math.round((tutor.hourly_rate_vnd / 60) * duration_minutes);
+        const commission_rate = 0.12; // 12% fee
+        const commission_vnd = Math.round(price_vnd * commission_rate);
+        const tutor_payout_vnd = price_vnd - commission_vnd;
+
+        const { rows } = await client.query(`
+          INSERT INTO bookings (
+            student_id, tutor_id, subject, session_date, start_time, end_time, duration_minutes,
+            price_vnd, commission_rate, commission_vnd, tutor_payout_vnd, platform, notes, status
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'google_meet', $12, 'pending'
+          ) RETURNING id
+        `, [
+          student.id, tutor_id, subject, session_date, start_time, end_time, duration_minutes,
+          price_vnd, commission_rate, commission_vnd, tutor_payout_vnd, notes
+        ]);
+
+        await client.query('COMMIT');
+        return sendSuccess(res, { message: 'Tạo booking thành công chờ thanh toán', booking_id: rows[0].id, price_vnd });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } catch (err) { next(err); }
   }
 
@@ -246,6 +437,29 @@ export class TutorController {
         ORDER BY b.session_date DESC, b.start_time DESC
       `, [tutor.id]);
       return sendSuccess(res, { items: rows });
+    } catch (err) { next(err); }
+  }
+
+  // ── 10.1.14 PATCH /tutor/bookings/:id/status ────────────────────────────
+  static async updateBookingStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const { status } = req.body; // 'confirmed', 'cancelled'
+
+      const tutor = await db.queryOne('SELECT id FROM tutor_profiles WHERE user_id = $1', [user.id]);
+      if (!tutor) throw new AppError('Không có quyền', 403, ERROR_CODES.FORBIDDEN);
+
+      const booking = await db.queryOne('SELECT id, status FROM bookings WHERE id = $1 AND tutor_id = $2', [id, tutor.id]);
+      if (!booking) throw new AppError('Không thấy booking', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      if (!['confirmed', 'cancelled'].includes(status)) {
+        throw new AppError('Trạng thái không hợp lệ', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
+
+      await db.query('UPDATE bookings SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+
+      return sendSuccess(res, { message: `Đã cập nhật trạng thái booking thành ${status}` });
     } catch (err) { next(err); }
   }
 }

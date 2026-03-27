@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import qs from 'qs';
 import { addDays, addMonths, addYears } from 'date-fns';
 import cache from '../utils/cache.js';
+import { NotificationService } from '../services/notification.service.js';
 
 /**
  * Helper: Tạo VNPay URL ký tự động
@@ -178,36 +179,71 @@ export class BillingController {
           [JSON.stringify(rawPayload), payment.id]
         );
       } else {
-        const planId = payment.note.replace('plan_id:', '');
-        const plan = await db.queryOne('SELECT * FROM subscription_plans WHERE id = $1', [planId]);
-        
-        let expiresAt: Date;
-        if (plan.billing_cycle === 'monthly') expiresAt = addMonths(new Date(), 1);
-        else if (plan.billing_cycle === 'yearly') expiresAt = addYears(new Date(), 1);
-        else expiresAt = addDays(new Date(), 36500); // lifetime
+        if (payment.note.startsWith('plan_id:')) {
+          const planId = payment.note.replace('plan_id:', '');
+          const plan = await db.queryOne('SELECT * FROM subscription_plans WHERE id = $1', [planId]);
+          
+          let expiresAt: Date;
+          if (plan.billing_cycle === 'monthly') expiresAt = addMonths(new Date(), 1);
+          else if (plan.billing_cycle === 'yearly') expiresAt = addYears(new Date(), 1);
+          else expiresAt = addDays(new Date(), 36500); // lifetime
 
-        // Disable existing active subscriptions for this user
-        await client.query("UPDATE subscriptions SET status = 'expired' WHERE user_id = $1 AND status = 'active'", [payment.user_id]);
+          await client.query("UPDATE subscriptions SET status = 'expired' WHERE user_id = $1 AND status = 'active'", [payment.user_id]);
 
-        // Insert new Subscription
-        const subRow = await client.query<{ id: string }>(
-          `INSERT INTO subscriptions (user_id, plan_id, status, expires_at)
-           VALUES ($1, $2, 'active', $3) RETURNING id`,
-          [payment.user_id, plan.id, expiresAt]
-        );
-        const subId = subRow.rows[0]!.id;
+          const subRow = await client.query<{ id: string }>(
+            `INSERT INTO subscriptions (user_id, plan_id, status, expires_at)
+             VALUES ($1, $2, 'active', $3) RETURNING id`,
+            [payment.user_id, plan.id, expiresAt]
+          );
+          const subId = subRow.rows[0]!.id;
 
-        // Update Payment
-        await client.query(
-          "UPDATE payments SET status = 'success', paid_at = NOW(), subscription_id = $1, gateway_response = $2, updated_at = NOW() WHERE id = $3",
-          [subId, JSON.stringify(rawPayload), payment.id]
-        );
+          await client.query(
+            "UPDATE payments SET status = 'success', paid_at = NOW(), subscription_id = $1, gateway_response = $2, updated_at = NOW() WHERE id = $3",
+            [subId, JSON.stringify(rawPayload), payment.id]
+          );
 
-        // Update User Profile Role
-        await client.query("UPDATE users SET plan = 'premium', plan_expires_at = $1 WHERE id = $2", [expiresAt, payment.user_id]);
-        
-        // Invalidate Cache mapping user
-        cache.del(`user:${payment.user_id}`);
+          await client.query("UPDATE users SET plan = 'premium', plan_expires_at = $1 WHERE id = $2", [expiresAt, payment.user_id]);
+          cache.del(`user:${payment.user_id}`);
+
+        } else if (payment.note.startsWith('booking_id:')) {
+          const bookingId = payment.note.replace('booking_id:', '');
+          
+          // Update Booking Status
+          await client.query(
+            "UPDATE bookings SET status = 'confirmed', updated_at = NOW() WHERE id = $1",
+            [bookingId]
+          );
+
+          // Update Payment Status
+          await client.query(
+            "UPDATE payments SET status = 'success', paid_at = NOW(), gateway_response = $1, updated_at = NOW() WHERE id = $2",
+            [JSON.stringify(rawPayload), payment.id]
+          );
+
+          // Notify Tutor and Student
+          const booking = await client.query(`
+            SELECT b.tutor_id, b.student_id, b.session_date, b.start_time, tp.user_id as tutor_user_id
+            FROM bookings b
+            JOIN tutor_profiles tp ON b.tutor_id = tp.id
+            WHERE b.id = $1
+          `, [bookingId]);
+
+          if (booking.rowCount && booking.rowCount > 0) {
+            const b = booking.rows[0];
+            const msg = `Lịch hẹn ngày ${b.session_date} lúc ${b.start_time} đã được thanh toán thành công.`;
+            
+            // Notification for Tutor
+            await NotificationService.createNotification(
+              b.tutor_user_id, 'booking_confirmed', 'Bạn có lịch dạy mới', msg, { booking_id: bookingId }
+            );
+            // Notification for Student
+            await NotificationService.createNotification(
+              b.student_id, 'booking_confirmed', 'Thanh toán buổi học thành công', msg, { booking_id: bookingId }
+            );
+
+            // TODO: In a real app, send actual Email via EmailService here
+          }
+        }
       }
 
       await client.query('COMMIT');

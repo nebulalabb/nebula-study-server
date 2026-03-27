@@ -35,6 +35,7 @@ import supportRoutes from './routes/support.routes.js';
 import { initBillingWorker } from './workers/billing.worker.js';
 import { initStreakWorker } from './workers/streak.worker.js';
 import { initFlashcardWorker } from './workers/flashcard.worker.js';
+import { initBookingWorker } from './workers/booking.worker.js';
 
 // Load environment variables
 dotenv.config();
@@ -44,6 +45,7 @@ dotenv.config();
 initBillingWorker();
 initStreakWorker();
 initFlashcardWorker();
+initBookingWorker();
 
 const app: Express = express();
 const port = process.env.PORT || 3001;

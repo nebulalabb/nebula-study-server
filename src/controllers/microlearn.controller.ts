@@ -25,18 +25,37 @@ export class MicrolearnController {
     try {
       const user = req.user!;
       const { topic_id } = req.params;
+      const { notification_time } = req.body; // e.g., "08:00"
 
       const topic = await db.queryOne('SELECT id FROM learning_topics WHERE id = $1', [topic_id]);
       if (!topic) throw new AppError('Chủ đề không tồn tại', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
 
-      await db.query(
-        `INSERT INTO user_topic_subscriptions (user_id, topic_id, subscribed_at, current_day)
-         VALUES ($1, $2, NOW(), 1)
-         ON CONFLICT (user_id, topic_id) DO NOTHING`,
-        [user.id, topic.id]
-      );
+      const client = await db.getClient();
+      try {
+        await client.query('BEGIN');
 
-      return sendSuccess(res, { message: 'Đăng ký thành công' });
+        await client.query(
+          `INSERT INTO user_topic_subscriptions (user_id, topic_id, subscribed_at, current_day)
+           VALUES ($1, $2, NOW(), 1)
+           ON CONFLICT (user_id, topic_id) DO NOTHING`,
+          [user.id, topic.id]
+        );
+
+        // Update or Insert notification time in user_streaks
+        await client.query(`
+          INSERT INTO user_streaks (user_id, notification_time)
+          VALUES ($1, $2)
+          ON CONFLICT (user_id) DO UPDATE SET notification_time = $2
+        `, [user.id, notification_time || '08:00:00']);
+
+        await client.query('COMMIT');
+        return sendSuccess(res, { message: 'Đăng ký thành công' });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } catch (err) { next(err); }
   }
 
@@ -44,10 +63,11 @@ export class MicrolearnController {
   static async getTodayLessons(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user!;
+      const isPremium = user.plan === 'premium';
       
       // Get all active subscriptions for user
       const { rows: subs } = await db.query(`
-        SELECT s.topic_id, s.current_day, t.name as topic_name, t.icon_url
+        SELECT s.topic_id, t.name as topic_name, t.icon_url
         FROM user_topic_subscriptions s
         JOIN learning_topics t ON s.topic_id = t.id
         WHERE s.user_id = $1 AND t.is_active = TRUE
@@ -60,13 +80,33 @@ export class MicrolearnController {
       const todayLessons: any[] = [];
 
       for (const sub of subs) {
-        // Find lesson for current_day
-        const lesson = await db.queryOne(`
-          SELECT * FROM daily_lessons WHERE topic_id = $1 AND day_index = $2
-        `, [sub.topic_id, sub.current_day]);
+        // Find the first unread lesson for this topic
+        // Logic: Prioritize unread, follow publish_date, respect premium status
+        let query = `
+          SELECT dl.* FROM daily_lessons dl
+          LEFT JOIN user_lesson_progress ulp ON dl.id = ulp.lesson_id AND ulp.user_id = $1
+          WHERE dl.topic_id = $2 AND (ulp.id IS NULL OR ulp.status != 'completed')
+        `;
+        const params: any[] = [user.id, sub.topic_id];
+
+        if (!isPremium) {
+          query += ` AND dl.is_free = TRUE`;
+        }
+
+        query += ` ORDER BY dl.publish_date ASC, dl.created_at ASC LIMIT 1`;
+
+        let lesson = await db.queryOne(query, params);
+
+        // Fallback: If no unread lessons, pick the most recently published one (even if read)
+        if (!lesson) {
+          let fallbackQuery = `SELECT * FROM daily_lessons WHERE topic_id = $1`;
+          if (!isPremium) fallbackQuery += ` AND is_free = TRUE`;
+          fallbackQuery += ` ORDER BY publish_date DESC, created_at DESC LIMIT 1`;
+          lesson = await db.queryOne(fallbackQuery, [sub.topic_id]);
+        }
 
         if (lesson) {
-          // Check if already completed today
+          // Check progress again for the lesson we found
           const progress = await db.queryOne(`
             SELECT status FROM user_lesson_progress 
             WHERE user_id = $1 AND lesson_id = $2
@@ -203,6 +243,23 @@ export class MicrolearnController {
         total_days: totalDays,
         last_activity_date: lastActivity
       });
+    } catch (err) { next(err); }
+  }
+
+  // ── 9.1.8 GET /microlearn/history ──────────────────────────────────────────
+  static async listHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user!;
+      const { rows } = await db.query(`
+        SELECT completed_at::date as date, COUNT(*) as count
+        FROM user_lesson_progress
+        WHERE user_id = $1 AND status = 'completed' AND completed_at IS NOT NULL
+        GROUP BY date
+        ORDER BY date DESC
+        LIMIT 365
+      `, [user.id]);
+      
+      return sendSuccess(res, { items: rows });
     } catch (err) { next(err); }
   }
 }

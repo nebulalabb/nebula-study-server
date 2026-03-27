@@ -26,8 +26,8 @@ router.get('/exams', AdminController.listExams);
 router.patch('/exams/:id/publish', AdminController.toggleExamPublish);
 router.delete('/exams/:id', AdminController.deleteExam);
 
-router.get('/lessons', AdminController.listLessons);
 router.post('/lessons', AdminController.createLesson);
+router.post('/lessons/generate-ai', AdminController.generateLessonAI);
 router.patch('/lessons/:id', AdminController.updateLesson);
 router.delete('/lessons/:id', AdminController.deleteLesson);
 

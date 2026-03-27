@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; }
+        .header { text-align: center; border-bottom: 2px solid #f97316; padding-bottom: 10px; }
+        .content { padding: 20px 0; }
+        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 20px; }
+        .button { display: inline-block; padding: 12px 24px; background-color: #f97316; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .streak { font-size: 24px; font-weight: bold; color: #f97316; }
+    </style>
+</head>
+<body>
+    <div className="container">
+        <div className="header">
+            <h2>NebulaLab.vn — 5 Phút Học Mỗi Ngày</h2>
+        </div>
+        <div className="content">
+            <p>Chào <strong><%= name %></strong>,</p>
+            <p>Bài học Nebula Flash hôm nay đã sẵn sàng chờ bạn khám phá! Đừng quên dành ra 5 phút để duy trì thói quen học tập nhé.</p>
+            <p>Chuỗi ngày học liên tiếp hiện tại của bạn: <span className="streak"><%= streak %> ngày</span> 🔥</p>
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="<%= link %>" className="button">Học ngay bây giờ</a>
+            </div>
+            <p>Mỗi bước nhỏ bạn đi hôm nay đều góp phần tạo nên một bước tiến lớn cho tương lai. Chúc bạn một ngày học tập hứng khởi!</p>
+        </div>
+        <div className="footer">
+            <p>&copy; 2024 NebulaLab.vn. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

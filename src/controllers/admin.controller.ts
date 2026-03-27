@@ -130,14 +130,43 @@ export class AdminController {
       const newStatus = validActions[actionStr];
       if (!newStatus) throw new AppError('Hành động không hợp lệ', 400, ERROR_CODES.VALIDATION_FAILED);
 
-      const is_verified = action === 'approve';
-      const { rowCount } = await db.query(
-        'UPDATE tutor_profiles SET status = $1, is_verified = $2 WHERE id = $3',
-        [newStatus, is_verified, id]
-      );
-      if (rowCount === 0) throw new AppError('Không tìm thấy hồ sơ gia sư', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+      const client = await db.getClient();
+      try {
+        await client.query('BEGIN');
 
-      return sendSuccess(res, { message: `Đã ${actionStr} hồ sơ gia sư thành công` });
+        const is_verified = actionStr === 'approve';
+        
+        // 1. Update Tutor Profile Status
+        const { rows: profiles } = await client.query(
+          'UPDATE tutor_profiles SET status = $1, is_verified = $2, updated_at = NOW() WHERE id = $3 RETURNING user_id',
+          [newStatus, is_verified, id]
+        );
+        if (profiles.length === 0) throw new AppError('Không tìm thấy hồ sơ gia sư', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+        
+        const userId = profiles[0].user_id;
+
+        // 2. If approved, upgrade user role to 'tutor'
+        if (actionStr === 'approve') {
+          await client.query("UPDATE users SET role = 'tutor', updated_at = NOW() WHERE id = $1", [userId]);
+          
+          // 3. Notify user
+          await NotificationService.createNotification(
+            userId,
+            'tutor_approved',
+            'Chúc mừng! Hồ sơ gia sư đã được duyệt',
+            'Bạn đã chính thức trở thành Gia sư trên Nebula. Hãy bắt đầu cập nhật lịch rảnh và sẵn sàng nhận học sinh nhé!',
+            { tutor_id: id }
+          );
+        }
+
+        await client.query('COMMIT');
+        return sendSuccess(res, { message: `Đã ${actionStr} hồ sơ gia sư thành công` });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } catch (err) { next(err); }
   }
 
@@ -237,6 +266,36 @@ export class AdminController {
       const { rowCount } = await db.query('DELETE FROM daily_lessons WHERE id = $1', [id]);
       if (rowCount === 0) throw new AppError('Không tìm thấy bài học', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
       return sendSuccess(res, { message: 'Đã xoá bài học' });
+    } catch (err) { next(err); }
+  }
+
+  // ── 12.1.7 POST /admin/lessons/generate-ai ──────────────────────────────
+  static async generateLessonAI(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { topic_id, topic_name, keywords, difficulty = 'medium', is_free = true } = req.body;
+      
+      if (!topic_id || !topic_name) {
+        throw new AppError('Thiếu topic_id hoặc topic_name', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
+
+      const { generateMicroLessonPayload } = await import('../utils/microlearn-prompt.js');
+      const payload = await generateMicroLessonPayload({ topic: topic_name, keywords, difficulty });
+
+      const { rows } = await db.query(`
+        INSERT INTO daily_lessons (topic_id, title, content, estimated_minutes, quiz_question, is_free, publish_date)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)
+        RETURNING id
+      `, [
+        topic_id, 
+        payload.title, 
+        payload.content, 
+        payload.estimated_minutes || 5, 
+        JSON.stringify(payload.quiz_question),
+        is_free,
+        // publish_date is set to today by default
+      ]);
+
+      return sendSuccess(res, { lesson_id: rows[0].id, lesson: payload });
     } catch (err) { next(err); }
   }
 

@@ -272,3 +272,19 @@
 2026-03-27 14:58:41:5841 [31merror[39m: [31mUnexpected token '`', "```json[39m
 [31m{[39m
 [31m"... is not valid JSON - POST /v1/exam/generate[39m
+2026-03-27 15:03:26:326 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 15:03:26:326 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 15:18:40:1840 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 15:33:40:3340 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 15:48:48:4848 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-27 15:48:48:4848 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 15:48:48:4848 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 15:53:53:5353 [31merror[39m: [31mMôn học Toán học chưa được hỗ trợ ở Phase 1 - POST /v1/tutor/register[39m
+2026-03-27 15:58:04:584 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 15:58:04:584 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 15:58:17:5817 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 15:58:17:5817 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 15:59:32:5932 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 15:59:32:5932 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 15:59:47:5947 [31merror[39m: [31minvalid input syntax for type uuid: "my-profile" - GET /v1/tutor/my-profile[39m
+2026-03-27 16:01:07:17 [31merror[39m: [31mnew row for relation "notifications" violates check constraint "notifications_type_check" - PATCH /v1/admin/tutors/54db28cb-5185-4122-8552-cc754e5f3c59/approve[39m

@@ -27,7 +27,7 @@ const transporter = (SMTP_USER && SMTP_PASS) ? nodemailer.createTransport({
 export interface EmailOptions {
   to: string;
   subject: string;
-  template: 'verify-email' | 'reset-password' | 'flashcard-reminder';
+  template: 'verify-email' | 'reset-password' | 'flashcard-reminder' | 'streak-reminder';
   context: Record<string, any>;
 }
 

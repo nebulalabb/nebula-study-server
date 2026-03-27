@@ -1,0 +1,153 @@
+2026-03-25 21:03:04:34 [31merror[39m: [31mSASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string - POST /v1/auth/register[39m
+2026-03-25 21:08:36:836 [31merror[39m: [31mInvalid email or password - POST /v1/auth/login[39m
+2026-03-25 21:09:01:91 [31merror[39m: [31mInvalid email or password - POST /v1/auth/login[39m
+2026-03-25 21:10:51:1051 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-25 21:10:51:1051 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:32:33:3233 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 10:32:33:3233 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 10:32:33:3233 [31merror[39m: [31m - POST /v1/auth/refresh[39m
+2026-03-26 10:32:33:3233 [31merror[39m: [31m - POST /v1/auth/refresh[39m
+2026-03-26 10:33:06:336 [31merror[39m: [31m - POST /v1/auth/login[39m
+2026-03-26 10:33:18:3318 [31merror[39m: [31m - POST /v1/auth/login[39m
+2026-03-26 10:33:47:3347 [31merror[39m: [31m - POST /v1/auth/login[39m
+2026-03-26 10:33:50:3350 [31merror[39m: [31m - POST /v1/auth/login[39m
+2026-03-26 10:41:07:417 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:41:07:417 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:42:07:427 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:43:07:437 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:43:55:4355 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:43:55:4355 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:43:58:4358 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:43:58:4358 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:44:58:4458 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 10:45:11:4511 [31merror[39m: [31mCannot destructure property 'refresh_token' of 'req.body' as it is undefined. - POST /v1/auth/logout[39m
+2026-03-26 11:55:53:5553 [31merror[39m: [31mAuthentication required - POST /v1/billing/subscribe[39m
+2026-03-26 13:47:15:4715 [31merror[39m: [31mcolumn "provider_user_id" of relation "user_oauth_accounts" does not exist - GET /v1/auth/google/callback?iss=https%3A%2F%2Faccounts.google.com&code=4%2F0Aci98E8Fubdl4mpJzfpAtL_rQ18RhwGeobd1yXRNMPkCURYf7pw23PXDP4rbCOoawtmCLA&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid&authuser=1&prompt=consent[39m
+2026-03-26 13:52:01:521 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:52:01:521 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:52:43:5243 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:52:43:5243 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:52:50:5250 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:52:50:5250 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:53:41:5341 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:53:41:5341 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:54:53:5453 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:54:53:5453 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:55:53:5553 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:56:53:5653 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:00:570 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:00:570 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:03:573 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:03:573 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:33:5733 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:33:5733 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:35:5735 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:57:35:5735 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:58:35:5835 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:09:599 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:11:5911 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:11:5911 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:37:5937 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:37:5937 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:42:5942 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 13:59:42:5942 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:00:33:033 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:00:33:033 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:00:47:047 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:00:47:047 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:00:49:049 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:00:49:049 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:01:49:149 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:02:49:249 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:03:49:349 [31merror[39m: [31msyntax error at or near "{" - GET /v1/notification?limit=5[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 14:07:09:79 [31merror[39m: [31mSession not found or revoked - POST /v1/auth/refresh[39m
+2026-03-26 14:15:52:1552 [31merror[39m: [31mCannot destructure property 'refresh_token' of 'req.body' as it is undefined. - POST /v1/auth/logout[39m
+2026-03-26 14:32:44:3244 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 14:33:57:3357 [31merror[39m: [31mGeminiService: Unknown error on attempt 1: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [400 Bad Request] Invalid JSON payload received. Unknown name "text" at 'contents[0]': Cannot find field. [{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"contents[0]","description":"Invalid JSON payload received. Unknown name \"text\" at 'contents[0]': Cannot find field."}]}][39m
+2026-03-26 14:33:57:3357 [31merror[39m: [31m[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [400 Bad Request] Invalid JSON payload received. Unknown name "text" at 'contents[0]': Cannot find field. [{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"contents[0]","description":"Invalid JSON payload received. Unknown name \"text\" at 'contents[0]': Cannot find field."}]}] - POST /v1/flashcard/sets/generate/text[39m
+2026-03-26 14:47:47:4747 [31merror[39m: [31mAuthentication required - GET /v1/flashcard/sets[39m
+2026-03-26 14:47:47:4747 [31merror[39m: [31mAuthentication required - GET /v1/flashcard/sets[39m
+2026-03-26 14:47:47:4747 [31merror[39m: [31mAuthentication required - GET /v1/flashcard/review/due?limit=1[39m
+2026-03-26 14:47:47:4747 [31merror[39m: [31mAuthentication required - GET /v1/flashcard/review/due?limit=1[39m
+2026-03-26 15:03:17:317 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 15:18:38:1838 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 15:31:51:3151 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:31:51:3151 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:31:56:3156 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor?subject=To%C3%A1n+h%E1%BB%8Dc[39m
+2026-03-26 15:31:56:3156 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor?subject=Ti%E1%BA%BFng+Anh[39m
+2026-03-26 15:33:39:3339 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 15:33:39:3339 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-26 15:34:22:3422 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:34:22:3422 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:37:11:3711 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor?subject=To%C3%A1n+h%E1%BB%8Dc[39m
+2026-03-26 15:37:11:3711 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor?subject=Ti%E1%BA%BFng+Anh[39m
+2026-03-26 15:37:12:3712 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:37:25:3725 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:37:25:3725 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:38:57:3857 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:38:57:3857 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:39:18:3918 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:39:18:3918 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:40:10:4010 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:40:10:4010 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:40:22:4022 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:40:22:4022 [31merror[39m: [31msyntax error at or near "{" - GET /v1/tutor[39m
+2026-03-26 15:48:42:4842 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 16:03:43:343 [31merror[39m: [31mAuthentication required - GET /v1/solver/history?page=1&limit=10[39m
+2026-03-26 16:03:43:343 [31merror[39m: [31mAuthentication required - GET /v1/solver/history?page=1&limit=10[39m
+2026-03-26 16:14:41:1441 [31merror[39m: [31mUnknown API key your_api_key - POST /v1/user/me/avatar[39m
+2026-03-26 16:18:44:1844 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 16:18:44:1844 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 16:19:37:1937 [31merror[39m: [31mCannot destructure property 'refresh_token' of 'req.body' as it is undefined. - POST /v1/auth/logout[39m
+2026-03-26 16:38:54:3854 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 16:53:54:5354 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 17:08:54:854 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 17:09:02:92 [31merror[39m: [31mnew row for relation "payments" violates check constraint "payments_gateway_check" - POST /v1/billing/subscribe[39m
+2026-03-26 20:19:55:1955 [31merror[39m: [31mcolumn "is_active" does not exist - GET /v1/admin/users?limit=30[39m
+2026-03-26 20:19:55:1955 [31merror[39m: [31mcolumn "is_active" does not exist - GET /v1/admin/users?limit=30[39m
+2026-03-26 20:22:43:2243 [31merror[39m: [31mcolumn "grade" does not exist - GET /v1/admin/exams?limit=50[39m
+2026-03-26 20:22:43:2243 [31merror[39m: [31mcolumn "grade" does not exist - GET /v1/admin/exams?limit=50[39m
+2026-03-26 20:27:45:2745 [31merror[39m: [31mAuthentication required - GET /v1/admin/stats[39m
+2026-03-26 20:27:45:2745 [31merror[39m: [31mAuthentication required - GET /v1/admin/stats[39m
+2026-03-26 20:43:26:4326 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 20:46:11:4611 [31merror[39m: [31mAuthentication required - GET /v1/social/friends[39m
+2026-03-26 20:46:11:4611 [31merror[39m: [31mAuthentication required - GET /v1/social/friends/requests[39m
+2026-03-26 20:59:19:5919 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:00:32:032 [31merror[39m: [31mnew row for relation "notifications" violates check constraint "notifications_type_check" - POST /v1/social/friends/request/3f268108-16d1-44b1-82d1-e96adf019ca4[39m
+2026-03-26 21:00:40:040 [31merror[39m: [31mYêu cầu đã tồn tại hoặc đã là bạn bè - POST /v1/social/friends/request/3f268108-16d1-44b1-82d1-e96adf019ca4[39m
+2026-03-26 21:00:45:045 [31merror[39m: [31mYêu cầu đã tồn tại hoặc đã là bạn bè - POST /v1/social/friends/request/3f268108-16d1-44b1-82d1-e96adf019ca4[39m
+2026-03-26 21:01:30:130 [31merror[39m: [31mnew row for relation "notifications" violates check constraint "notifications_type_check" - POST /v1/social/friends/request/3f268108-16d1-44b1-82d1-e96adf019ca4[39m
+2026-03-26 21:01:50:150 [31merror[39m: [31mnew row for relation "notifications" violates check constraint "notifications_type_check" - POST /v1/social/friends/accept/b06260be-edb2-4b5c-b098-53ee5dedc80b[39m
+2026-03-26 21:02:15:215 [31merror[39m: [31mnew row for relation "notifications" violates check constraint "notifications_type_check" - POST /v1/social/friends/request/3f268108-16d1-44b1-82d1-e96adf019ca4[39m
+2026-03-26 21:03:56:356 [31merror[39m: [31mAuthentication required - GET /v1/social/friends[39m
+2026-03-26 21:03:56:356 [31merror[39m: [31mAuthentication required - GET /v1/social/friends/requests[39m
+2026-03-26 21:03:56:356 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-26 21:03:56:356 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:03:56:356 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-26 21:03:56:356 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:15:18:1518 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:27:56:2756 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:31:09:319 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:43:09:439 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-26 21:46:09:469 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 08:21:44:2144 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-27 08:21:44:2144 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 08:21:44:2144 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-27 08:21:44:2144 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:44:2144 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m

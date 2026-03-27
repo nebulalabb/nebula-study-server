@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nebula_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula_pass
+      POSTGRES_DB: nebula_study
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nebula -d nebula_study" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

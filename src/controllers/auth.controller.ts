@@ -38,20 +38,20 @@ export class AuthController {
         fullName: full_name,
       });
 
-      // 5. Create email verification token
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      // 5. Create 6-digit numeric OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
       await db.query(
         'INSERT INTO email_verifications (user_id, token, type, expires_at) VALUES ($1, $2, $3, $4)',
-        [user.id, token, 'verify_email', expiresAt]
+        [user.id, otp, 'verify_email', expiresAt]
       );
 
       // 6. Enqueue email job
       await addEmailJob({
         to: email,
         name: full_name,
-        link: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/verify-email?token=${token}`,
+        link: otp, // Pass the OTP as the link parameter for simplicity in the job
         type: 'verify_email',
       });
 
@@ -107,6 +107,60 @@ export class AuthController {
       }
 
       return sendSuccess(res, { message: 'Email verified successfully.' });
+
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /auth/verify-otp
+   * Body: { email, otp }
+   */
+  static async verifyOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        throw new AppError('Email and OTP are required', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
+
+      // 1. Find User
+      const user = await UserService.findByEmail(email);
+      if (!user) {
+        throw new AppError('User not found', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+      }
+
+      // 2. Find latest active OTP for this user
+      const verification = await db.queryOne(
+        'SELECT * FROM email_verifications WHERE user_id = $1 AND token = $2 AND type = $3 AND used_at IS NULL ORDER BY created_at DESC LIMIT 1',
+        [user.id, otp, 'verify_email']
+      );
+
+      if (!verification) {
+        throw new AppError('Mã OTP không đúng hoặc đã hết hạn', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
+
+      // 3. Check expiration
+      if (new Date(verification.expires_at) < new Date()) {
+        throw new AppError('Mã OTP đã hết hạn', 410, ERROR_CODES.AUTH_EXPIRED_TOKEN);
+      }
+
+      // 4. Update user and mark token as used
+      const client = await db.getClient();
+      try {
+        await client.query('BEGIN');
+        await client.query('UPDATE users SET email_verified = true WHERE id = $1', [user.id]);
+        await client.query('UPDATE email_verifications SET used_at = NOW() WHERE id = $1', [verification.id]);
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      return sendSuccess(res, { message: 'Xác thực OTP thành công!' });
 
     } catch (err) {
       next(err);
@@ -285,9 +339,9 @@ export class AuthController {
         return sendSuccess(res, { message: 'If this email exists, a reset link will be sent.' });
       }
 
-      // 2. Create reset token
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+      // 2. Create reset OTP
+      const token = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
       await db.query(
         'INSERT INTO email_verifications (user_id, token, type, expires_at) VALUES ($1, $2, $3, $4)',
@@ -297,7 +351,8 @@ export class AuthController {
       // 3. Enqueue email job
       await addEmailJob({
         to: email,
-        link: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`,
+        name: user.full_name,
+        link: token, // Pass the OTP as the link parameter for the template
         type: 'reset_password',
       });
 
@@ -313,20 +368,26 @@ export class AuthController {
    */
   static async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const { token, new_password } = req.body;
+      const { email, otp, new_password } = req.body;
 
-      if (!token || !new_password) {
-        throw new AppError('Token and new password are required', 400, ERROR_CODES.VALIDATION_FAILED);
+      if (!email || !otp || !new_password) {
+        throw new AppError('Email, mã OTP và mật khẩu mới là bắt buộc', 400, ERROR_CODES.VALIDATION_FAILED);
       }
 
-      // 1. Find token
+      // 1. Find User
+      const user = await UserService.findByEmail(email);
+      if (!user) {
+        throw new AppError('Không tìm thấy người dùng', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+      }
+
+      // 2. Find latest active OTP for this user
       const verification = await db.queryOne(
-        'SELECT * FROM email_verifications WHERE token = $1 AND type = $2 AND used_at IS NULL',
-        [token, 'reset_password']
+        'SELECT * FROM email_verifications WHERE user_id = $1 AND token = $2 AND type = $3 AND used_at IS NULL ORDER BY created_at DESC LIMIT 1',
+        [user.id, otp, 'reset_password']
       );
 
       if (!verification) {
-        throw new AppError('Invalid or expired token', 400, ERROR_CODES.VALIDATION_FAILED);
+        throw new AppError('Mã OTP không đúng hoặc đã hết hạn', 400, ERROR_CODES.VALIDATION_FAILED);
       }
 
       // 2. Check expiration

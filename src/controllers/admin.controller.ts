@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../db/index.js';
 import { sendSuccess } from '../utils/response.js';
 import { AppError, ERROR_CODES } from '../utils/AppError.js';
+import { NotificationService } from '../services/notification.service.js';
 
 export class AdminController {
 
@@ -236,6 +237,75 @@ export class AdminController {
       const { rowCount } = await db.query('DELETE FROM daily_lessons WHERE id = $1', [id]);
       if (rowCount === 0) throw new AppError('Không tìm thấy bài học', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
       return sendSuccess(res, { message: 'Đã xoá bài học' });
+    } catch (err) { next(err); }
+  }
+
+  // ── SUPPORT REQUESTS ────────────────────────────────────────────────────────
+  static async listSupportRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { status, limit = 20, offset = 0 } = req.query;
+      let query = `
+        SELECT sr.*, u.full_name, u.email, u.avatar_url
+        FROM support_requests sr
+        JOIN users u ON sr.user_id = u.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      if (status) {
+        query += ' AND sr.status = $1';
+        params.push(status);
+      }
+      query += ` ORDER BY sr.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      params.push(Number(limit), Number(offset));
+
+      const { rows } = await db.query(query, params);
+      return sendSuccess(res, { items: rows });
+    } catch (err) { next(err); }
+  }
+
+  static async updateSupportRequest(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { status, admin_notes } = req.body;
+
+      const fields: string[] = [];
+      const vals: any[] = [];
+      let pi = 1;
+
+      if (status) { fields.push(`status = $${pi++}`); vals.push(status); }
+      if (admin_notes !== undefined) { fields.push(`admin_notes = $${pi++}`); vals.push(admin_notes); }
+
+      if (fields.length === 0) throw new AppError('Không có gì để cập nhật', 400, ERROR_CODES.VALIDATION_FAILED);
+
+      vals.push(id);
+      const { rowCount } = await db.query(
+        `UPDATE support_requests SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${pi}`,
+        vals
+      );
+
+      if (rowCount === 0) throw new AppError('Không tìm thấy yêu cầu hỗ trợ', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+
+      // Notify the user about the update
+      const updatedRequest = await db.queryOne('SELECT user_id, title FROM support_requests WHERE id = $1', [id]);
+      if (updatedRequest && (status || admin_notes)) {
+        const statusMap: Record<string, string> = {
+          'pending': 'Đang chờ',
+          'in_progress': 'Đang xử lý',
+          'resolved': 'Đã hoàn thành',
+          'closed': 'Đã đóng'
+        };
+        const statusVi = statusMap[status] || 'Đang cập nhật';
+        
+        await NotificationService.createNotification(
+          updatedRequest.user_id,
+          'support_update',
+          'Cập nhật yêu cầu hỗ trợ',
+          `Yêu cầu "${updatedRequest.title}" đã được chuyển sang trạng thái: ${statusVi}.`,
+          { request_id: id }
+        );
+      }
+
+      return sendSuccess(res, { message: 'Cập nhật yêu cầu hỗ trợ thành công' });
     } catch (err) { next(err); }
   }
 }

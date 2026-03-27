@@ -151,3 +151,47 @@
 2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
 2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
 2026-03-27 08:21:45:2145 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 08:45:56:4556 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/social/messages/unread-count[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:04:30:430 [31merror[39m: [31mAuthentication required - GET /v1/quota[39m
+2026-03-27 09:05:13:513 [31merror[39m: [31mAuthentication required - POST /v1/support/request[39m
+2026-03-27 09:05:42:542 [31merror[39m: [31mAuthentication required - POST /v1/support/request[39m
+2026-03-27 09:06:09:69 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:06:09:69 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:06:14:614 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:06:19:619 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:06:19:619 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:06:47:647 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:06:47:647 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=474796e4-decd-498c-8130-7476c71aa0b4[39m
+2026-03-27 09:07:53:753 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=01585d6e-a5db-4c6a-9c47-ea2c1e0fc6d0[39m
+2026-03-27 09:07:53:753 [31merror[39m: [31mAuthentication required - GET /v1/billing/pending?plan_id=01585d6e-a5db-4c6a-9c47-ea2c1e0fc6d0[39m
+2026-03-27 09:15:59:1559 [31merror[39m: [31mError sending email: Unauthorized[39m
+2026-03-27 09:15:59:1559 [31merror[39m: [31m[Worker] Failed to send email to akaisui0001@gmail.com: Failed to send email[39m
+2026-03-27 09:32:04:324 [31merror[39m: [31mAuthentication required - GET /v1/admin/support[39m
+2026-03-27 09:32:04:324 [31merror[39m: [31mAuthentication required - GET /v1/admin/support[39m
+2026-03-27 09:32:08:328 [31merror[39m: [31mnew row for relation "notifications" violates check constraint "notifications_type_check" - POST /v1/support/request[39m
+2026-03-27 09:46:43:4643 [31merror[39m: [31mAuthentication required - GET /v1/notification?limit=5[39m

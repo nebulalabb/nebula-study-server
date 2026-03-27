@@ -1,7 +1,7 @@
 import { db } from '../db/index.js';
 import { emitToUser } from '../socket.js';
 
-type NotificationType = 'flashcard_review_due' | 'streak_reminder' | 'booking_confirmed' | 'booking_reminder' | 'payment_success' | 'payment_failed' | 'system' | 'friend_request' | 'friend_accepted';
+type NotificationType = 'flashcard_review_due' | 'streak_reminder' | 'booking_confirmed' | 'booking_reminder' | 'payment_success' | 'payment_failed' | 'system' | 'friend_request' | 'friend_accepted' | 'support_request' | 'support_update';
 
 export class NotificationService {
   /**

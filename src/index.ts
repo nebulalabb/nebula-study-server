@@ -30,6 +30,7 @@ import tutorRoutes from './routes/tutor.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import socialRoutes from './routes/social.routes.js';
+import supportRoutes from './routes/support.routes.js';
 
 import { initBillingWorker } from './workers/billing.worker.js';
 import { initStreakWorker } from './workers/streak.worker.js';
@@ -110,6 +111,9 @@ app.use('/v1/admin', adminRoutes);
 
 // Social Routes
 app.use('/v1/social', socialRoutes);
+
+// Support Routes
+app.use('/v1/support', supportRoutes);
 
 // 4. Global Error Handler (Must be last)
 app.use(errorHandler);

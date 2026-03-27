@@ -256,4 +256,36 @@ export class UserController {
       next(err);
     }
   }
+
+  /**
+   * 2.1.8 GET /user/:id — Lấy profile công khai của người khác
+   */
+  static async getPublicProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const user = await UserService.findById(id);
+
+      if (!user) {
+        throw new AppError('Không tìm thấy người dùng', 404, ERROR_CODES.RESOURCE_NOT_FOUND);
+      }
+
+      const stats = await UserService.getStudentStats(id);
+
+      return sendSuccess(res, {
+        profile: {
+          id: user.id,
+          full_name: user.full_name,
+          avatar_url: user.avatar_url,
+          level: user.level,
+          xp: user.xp,
+          streak: user.streak,
+          created_at: user.created_at,
+          role: user.role
+        },
+        stats
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

@@ -23,8 +23,8 @@ router.post('/me/change-password', UserController.changePassword);
 // 2.1.5 — GET /user/me/usage
 router.get('/me/usage', UserController.getUsage);
 
-// 2.1.6 — GET /user/leaderboard
 router.get('/leaderboard', UserController.getLeaderboard);
 router.get('/stats', UserController.getProfileStats);
+router.get('/:id', UserController.getPublicProfile);
 
 export default router;

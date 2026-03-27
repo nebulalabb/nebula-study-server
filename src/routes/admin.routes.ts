@@ -31,4 +31,8 @@ router.post('/lessons', AdminController.createLesson);
 router.patch('/lessons/:id', AdminController.updateLesson);
 router.delete('/lessons/:id', AdminController.deleteLesson);
 
+// Support Requests
+router.get('/support', AdminController.listSupportRequests);
+router.patch('/support/:id', AdminController.updateSupportRequest);
+
 export default router;

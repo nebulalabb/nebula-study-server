@@ -1,13 +1,13 @@
-import { UserService } from './src/services/user.service.js';
-import { AuthService } from './src/services/auth.service.js';
-import { db } from './src/db/index.js';
+import { UserService } from '../../services/user.service.js';
+import { AuthService } from '../../services/auth.service.js';
+import { db } from '../index.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
 async function seedAdmin() {
   try {
-    const email = 'admin@nebulalab.vn';
-    const passwordHash = await AuthService.hashPassword('Admin@123');
+    const email = 'nhoangkha03@gmail.com';
+    const passwordHash = await AuthService.hashPassword('admin123');
 
     // 1. Check if exists
     let user = await UserService.findByEmail(email);

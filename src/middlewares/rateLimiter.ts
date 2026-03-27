@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
-import { sendError } from '../utils/response';
-import { ERROR_CODES } from '../utils/AppError';
+import { sendError } from '../utils/response.js';
+import { ERROR_CODES } from '../utils/AppError.js';
 
 /**
  * Global Rate Limiter: 100 requests per minute

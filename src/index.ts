@@ -11,10 +11,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { globalLimiter } from './middlewares/rateLimiter';
-import { errorHandler } from './middlewares/error.handler';
-import { sendSuccess } from './utils/response';
-import logger from './utils/logger';
+import { globalLimiter } from './middlewares/rateLimiter.js';
+import { errorHandler } from './middlewares/error.handler.js';
+import { sendSuccess } from './utils/response.js';
+import logger from './utils/logger.js';
 // import { initEmailWorker } from './workers/email.worker.js'; // Removed: No longer using Bull/Redis
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';

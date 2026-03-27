@@ -4,6 +4,9 @@ import { sendSuccess } from '../utils/response.js';
 import { AppError, ERROR_CODES } from '../utils/AppError.js';
 import { emitToUser } from '../socket.js';
 import { NotificationService } from '../services/notification.service.js';
+import cloudinary from '../utils/cloudinary.js';
+import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
+import streamifier from 'streamifier';
 
 export class SocialController {
 
@@ -132,12 +135,14 @@ export class SocialController {
   static async sendMessage(req: Request, res: Response, next: NextFunction) {
     try {
       const { recipientId } = req.params;
-      const { content } = req.body;
+      const { content, type = 'text', metadata = {} } = req.body;
       const senderId = req.user!.id;
 
-      if (!content) throw new AppError('Nội dung không được để trống', 400, ERROR_CODES.VALIDATION_FAILED);
+      if (!content && type === 'text') {
+        throw new AppError('Nội dung không được để trống', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
 
-      // Verify friendship (optional, but recommended)
+      // Verify friendship
       const isFriend = await db.queryOne(
         "SELECT id FROM friendships WHERE status = 'accepted' AND ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))",
         [senderId, recipientId]
@@ -148,14 +153,53 @@ export class SocialController {
       }
 
       const { rows } = await db.query(
-        'INSERT INTO messages (sender_id, recipient_id, content) VALUES ($1, $2, $3) RETURNING *',
-        [senderId, recipientId, content]
+        'INSERT INTO messages (sender_id, recipient_id, content, type, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [senderId, recipientId, content || '', type, JSON.stringify(metadata)]
       );
 
       // Emit real-time message
       emitToUser(recipientId as string, 'new_message', rows[0]);
 
-      return sendSuccess(res, { message_id: rows[0].id });
+      return sendSuccess(res, { message_id: rows[0].id, message: rows[0] });
+    } catch (err) { next(err); }
+  }
+
+  static async uploadMedia(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        throw new AppError('Không có tệp nào được tải lên', 400, ERROR_CODES.VALIDATION_FAILED);
+      }
+
+      const senderId = req.user!.id;
+      const isVideo = req.file.mimetype.startsWith('video/');
+
+      // Upload to Cloudinary using stream
+      const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: `nebulalab/chat/${senderId}`,
+            resource_type: isVideo ? 'video' : 'image',
+          },
+          (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+            if (err || !result) return reject(err || new Error('Upload failed'));
+            resolve(result);
+          }
+        );
+        streamifier.createReadStream(req.file!.buffer).pipe(uploadStream);
+      });
+
+      return sendSuccess(res, { 
+        url: uploadResult.secure_url,
+        original_name: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        metadata: {
+            width: uploadResult.width,
+            height: uploadResult.height,
+            duration: (uploadResult as any).duration,
+            format: uploadResult.format
+        }
+      });
     } catch (err) { next(err); }
   }
 
@@ -166,7 +210,7 @@ export class SocialController {
       const { limit = 50, offset = 0 } = req.query;
 
       const { rows } = await db.query(`
-        SELECT id, sender_id, recipient_id, content, is_read, created_at
+        SELECT id, sender_id, recipient_id, content, type, metadata, is_read, created_at
         FROM messages
         WHERE (sender_id = $1 AND recipient_id = $2)
            OR (sender_id = $2 AND recipient_id = $1)
@@ -226,7 +270,7 @@ export class SocialController {
         WITH LastMessages AS (
             SELECT DISTINCT ON (partner_id)
                 CASE WHEN sender_id = $1 THEN recipient_id ELSE sender_id END as partner_id,
-                content, created_at, is_read, sender_id
+                content, type, metadata, created_at, is_read, sender_id
             FROM messages
             WHERE sender_id = $1 OR recipient_id = $1
             ORDER BY partner_id, created_at DESC

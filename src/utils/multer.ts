@@ -30,3 +30,19 @@ export const documentUpload = multer({
     }
   },
 });
+
+export const mediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB for media
+  fileFilter(_req: Request, file: Express.Multer.File, cb: FileFilterCallback) {
+    const allowed = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/mpeg', 'video/quicktime', 'video/webm'
+    ];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ chấp nhận file ảnh (JPG, PNG, WebP, GIF) hoặc video (MP4, MPEG, MOV, WEBM)'));
+    }
+  },
+});

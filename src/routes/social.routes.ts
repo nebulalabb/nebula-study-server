@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { SocialController } from '../controllers/social.controller.js';
 import { authGuard } from '../middlewares/auth.middleware.js';
+import { mediaUpload } from '../utils/multer.js';
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.get('/messages/unread-count', SocialController.getUnreadMessageCount);
 router.get('/messages/partner/:partnerId', SocialController.getPartnerInfo);
 router.get('/messages/conversations', SocialController.getConversations);
 router.get('/messages/:friendId', SocialController.getConversation);
+router.post('/messages/upload', mediaUpload.single('file'), SocialController.uploadMedia);
 router.post('/messages/:recipientId', SocialController.sendMessage);
 
 // Search

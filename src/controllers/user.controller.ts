@@ -270,6 +270,15 @@ export class UserController {
       }
 
       const stats = await UserService.getStudentStats(id);
+      
+      // Get friendship status if logged in
+      const currentUserId = req.user!.id;
+      const friendship = await db.queryOne(
+        `SELECT status, requester_id FROM friendships 
+         WHERE (requester_id = $1 AND addressee_id = $2) 
+            OR (requester_id = $2 AND addressee_id = $1)`,
+        [currentUserId, id]
+      );
 
       return sendSuccess(res, {
         profile: {
@@ -280,7 +289,9 @@ export class UserController {
           xp: user.xp,
           streak: user.streak,
           created_at: user.created_at,
-          role: user.role
+          role: user.role,
+          friendship_status: friendship?.status || null,
+          is_friend_requester: friendship?.requester_id === currentUserId
         },
         stats
       });

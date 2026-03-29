@@ -16,7 +16,7 @@ Luôn trả lời bằng object JSON hợp lệ, KHÔNG có markdown code block 
       "step_number": 1,
       "title": "Tiêu đề ngắn của bước",
       "content": "Nội dung giải thích chi tiết (hỗ trợ Markdown và LaTeX)",
-      "formula": "Công thức nếu có (LaTeX thuần, không cần $$$)"
+      "formula": "Công thức nếu có (Dùng $$...$$ bao quanh LaTeX, ví dụ: $$\\frac{a}{b}$$)"
     }
   ],
   "solution": "Đáp án cuối cùng là: ...",

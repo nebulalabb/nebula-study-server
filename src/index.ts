@@ -31,6 +31,7 @@ import notificationRoutes from './routes/notification.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import socialRoutes from './routes/social.routes.js';
 import supportRoutes from './routes/support.routes.js';
+import communityRoutes from './routes/community.routes.js';
 
 import { initBillingWorker } from './workers/billing.worker.js';
 import { initStreakWorker } from './workers/streak.worker.js';
@@ -51,7 +52,7 @@ const app: Express = express();
 const port = process.env.PORT || 3001;
 
 // Trust proxy for Render/Vercel
-app.set('trust proxy', 1);
+// app.set('trust proxy', 1);
 
 // 1. Security & Logging Middleware
 app.use(helmet());
@@ -119,6 +120,9 @@ app.use('/v1/social', socialRoutes);
 
 // Support Routes
 app.use('/v1/support', supportRoutes);
+
+// Community Expansion (Forum & Feed)
+app.use('/v1/community', communityRoutes);
 
 // 4. Global Error Handler (Must be last)
 app.use(errorHandler);

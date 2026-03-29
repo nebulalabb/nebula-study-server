@@ -1,7 +1,7 @@
 import { db } from '../db/index.js';
 import { emitToUser } from '../socket.js';
 
-export type NotificationType = 'flashcard_review_due' | 'streak_reminder' | 'booking_confirmed' | 'booking_reminder' | 'payment_success' | 'payment_failed' | 'system' | 'friend_request' | 'friend_accepted' | 'tutor_approved' | 'support_request' | 'support_update';
+export type NotificationType = 'flashcard_review_due' | 'streak_reminder' | 'booking_confirmed' | 'booking_reminder' | 'payment_success' | 'payment_failed' | 'system' | 'friend_request' | 'friend_accepted' | 'tutor_approved' | 'support_request' | 'support_update' | 'feed_like' | 'feed_comment' | 'forum_reply';
 
 export class NotificationService {
   /**
@@ -18,6 +18,7 @@ export class NotificationService {
       const { rows } = await db.query(`
         INSERT INTO notifications (user_id, type, title, body, data)
         VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
       `, [userId, type, title, message, JSON.stringify(data)]);
       
       // Emit socket.io realtime event

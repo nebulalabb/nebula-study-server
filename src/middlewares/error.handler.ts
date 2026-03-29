@@ -7,7 +7,8 @@ import logger from '../utils/logger.js';
  * Global Error Handling Middleware
  */
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  logger.error(`${err.message} - ${req.method} ${req.originalUrl}`);
+  console.error('[Error Handler] Full Error:', err);
+  logger.error(`${err.message || 'Unknown Error'} - ${req.method} ${req.originalUrl}`);
 
   if (err instanceof AppError) {
     return sendError(res, err.code, err.message, err.statusCode);

@@ -21,7 +21,9 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value ?? null;
+        console.log('[Passport] Profile:', JSON.stringify(profile, null, 2));
         if (!email) {
+          console.error('[Passport] No email found');
           return done(new Error('No email found in Google profile'), false);
         }
 
